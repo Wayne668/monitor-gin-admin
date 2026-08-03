@@ -1,0 +1,60 @@
+# ===== Common =====
+*.DS_Store
+*.local
+
+# IDE configs
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# ===== Server (Go) =====
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+/server/ginadmin
+/server/ginadmin_linux_amd64
+/server/ginadmin.lock
+/server/release
+/server/data
+/server/internal/test/data
+/server/tmp
+/server/vendor
+/server/configs/gen_rbac_policy.csv
+/server/configs/gen_rbac_policy.csv.bak
+/server/configs/rbac_policy.csv.bak
+/server/test/data
+/server/internal/swagger/v3/.openapi-generator
+/server/internal/swagger/v3/.openapi-generator-ignore
+
+# ===== Web (Node.js) =====
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+/web/node_modules
+/web/dist
+/web/dist-ssr
+/web/*/.vitepress/cache
+/web/*/.vitepress/.temp
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
