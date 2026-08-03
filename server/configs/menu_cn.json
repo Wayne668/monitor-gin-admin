@@ -10,7 +10,7 @@
     {
         "code": "system",
         "name": "系统管理",
-        "sequence": 10,
+        "sequence": 80,
         "type": "page",
         "path": "/system",
         "status": "enabled",
@@ -234,6 +234,71 @@
                         "path": "/api/v1/loggers"
                     }
                 ]
+            }
+        ]
+    },
+    {
+        "code": "tools",
+        "name": "监测工具",
+        "sequence": 70,
+        "type": "page",
+        "path": "/tools",
+        "status": "enabled",
+        "children": [
+            {
+                "code": "aiHost",
+                "name": "AI托管",
+                "sequence": 90,
+                "type": "page",
+                "path": "/tools/aiHost",
+                "status": "enabled",
+                "children": [
+                    {
+                        "code": "add",
+                        "name": "新建规则",
+                        "sequence": 8,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "edit",
+                        "name": "编辑",
+                        "sequence": 7,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "delete",
+                        "name": "删除",
+                        "sequence": 6,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "aiHostRuleForm",
+                        "name": "新增托管规则",
+                        "sequence": 10,
+                        "type": "page",
+                        "path": "/tools/aiHost/rule/form",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "aiHostRuleEdit",
+                        "name": "编辑托管规则",
+                        "sequence": 9,
+                        "type": "page",
+                        "path": "/tools/aiHost/rule/edit/:id",
+                        "status": "enabled"
+                    }
+                ]
+            },
+            {
+                "code": "materialWarn",
+                "name": "素材预警",
+                "sequence": 80,
+                "type": "page",
+                "path": "/tools/materialWarn",
+                "status": "enabled"
             }
         ]
     }

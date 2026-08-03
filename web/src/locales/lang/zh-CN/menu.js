@@ -32,4 +32,9 @@ export default {
     account: '个人页',
     'account.trigger': '触发报错',
     'account.logout': '退出登录',
+    tools: '监测工具',
+    aiHost: 'AI托管',
+    aiHostRuleForm: '新增托管规则',
+    aiHostRuleEdit: '编辑托管规则',
+    materialWarn: '素材预警',
 }

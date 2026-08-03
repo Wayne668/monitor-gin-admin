@@ -10,9 +10,6 @@ import (
 	"context"
 	"monitor-gin-admin/internal/mods"
 	"monitor-gin-admin/internal/mods/business"
-	api2 "monitor-gin-admin/internal/mods/business/api"
-	biz2 "monitor-gin-admin/internal/mods/business/biz"
-	dal2 "monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/rbac"
 	"monitor-gin-admin/internal/mods/rbac/api"
 	"monitor-gin-admin/internal/mods/rbac/biz"
@@ -123,19 +120,8 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		LoggerAPI: apiLogger,
 		Casbinx:   casbinx,
 	}
-	category := &dal2.Category{
-		DB: db,
-	}
-	bizCategory := &biz2.Category{
-		Trans:       trans,
-		CategoryDAL: category,
-	}
-	apiCategory := &api2.Category{
-		CategoryBIZ: bizCategory,
-	}
 	businessBusiness := &business.Business{
-		DB:          db,
-		CategoryAPI: apiCategory,
+		DB: db,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

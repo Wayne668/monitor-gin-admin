@@ -1,0 +1,173 @@
+<template>
+    <div class="account-transfer">
+        <div class="panel left-panel">
+            <div class="panel-header">
+                <a-form-item-rest>
+                    <a-input
+                        v-model:value="keyword"
+                        placeholder="搜索账户名称/ID"
+                        size="small"
+                        allow-clear>
+                        <template #prefix><SearchOutlined /></template>
+                    </a-input>
+                </a-form-item-rest>
+            </div>
+            <div class="panel-toolbar">
+                <a-form-item-rest>
+                    <a-checkbox
+                        :checked="isAllSelected"
+                        :indeterminate="isIndeterminate"
+                        @change="handleSelectAll">
+                        全选 ({{ filteredList.length }})
+                    </a-checkbox>
+                </a-form-item-rest>
+            </div>
+            <div class="panel-body">
+                <a-checkbox-group v-model:value="checkedKeys">
+                    <div
+                        v-for="item in filteredList"
+                        :key="item.id"
+                        class="account-item">
+                        <a-checkbox :value="item.id">{{ item.name }}</a-checkbox>
+                    </div>
+                </a-checkbox-group>
+                <a-empty
+                    v-if="filteredList.length === 0"
+                    description="无匹配账户" />
+            </div>
+        </div>
+
+        <div class="panel right-panel">
+            <div class="panel-header">
+                <span>已选 {{ selectedItems.length }} 个账户</span>
+                <a-button
+                    type="link"
+                    size="small"
+                    :disabled="selectedItems.length === 0"
+                    @click="clearAll">
+                    清空
+                </a-button>
+            </div>
+            <div class="panel-body tags-container">
+                <a-tag
+                    v-for="item in selectedItems"
+                    :key="item.id"
+                    closable
+                    @close="removeItem(item.id)"
+                    style="margin: 4px">
+                    {{ item.name }}
+                </a-tag>
+                <a-empty
+                    v-if="selectedItems.length === 0"
+                    description="暂未选择" />
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { SearchOutlined } from '@ant-design/icons-vue'
+
+const props = defineProps({
+    options: { type: Array, default: () => [] },
+    modelValue: { type: Array, default: () => [] },
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const keyword = ref('')
+const checkedKeys = ref([...props.modelValue])
+
+const filteredList = computed(() => {
+    const kw = keyword.value.trim().toLowerCase()
+    if (!kw) return props.options
+    return props.options.filter((o) => o.name.toLowerCase().includes(kw) || String(o.id).toLowerCase().includes(kw))
+})
+
+const selectedItems = computed(() => props.options.filter((o) => checkedKeys.value.includes(o.id)))
+
+const isAllSelected = computed(
+    () => filteredList.value.length > 0 && filteredList.value.every((o) => checkedKeys.value.includes(o.id))
+)
+const isIndeterminate = computed(
+    () => !isAllSelected.value && filteredList.value.some((o) => checkedKeys.value.includes(o.id))
+)
+
+const handleSelectAll = (e) => {
+    const ids = filteredList.value.map((o) => o.id)
+    if (e.target.checked) {
+        checkedKeys.value = [...new Set([...checkedKeys.value, ...ids])]
+    } else {
+        checkedKeys.value = checkedKeys.value.filter((k) => !ids.includes(k))
+    }
+}
+
+const removeItem = (id) => {
+    checkedKeys.value = checkedKeys.value.filter((k) => k !== id)
+}
+const clearAll = () => {
+    checkedKeys.value = []
+}
+
+watch(
+    () => props.modelValue,
+    (val) => {
+        checkedKeys.value = [...val]
+    },
+    { deep: true }
+)
+watch(
+    checkedKeys,
+    (val) => {
+        emit('update:modelValue', [...val])
+    },
+    { deep: true }
+)
+</script>
+
+<style scoped>
+.account-transfer {
+    display: flex;
+    gap: 16px;
+}
+.panel {
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.left-panel {
+    flex: 1;
+    min-width: 0;
+}
+.right-panel {
+    width: 280px;
+    flex-shrink: 0;
+}
+.panel-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+}
+.panel-toolbar {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.panel-body {
+    flex: 1;
+    padding: 8px 12px;
+    overflow-y: auto;
+    max-height: 280px;
+    min-height: 200px;
+}
+.account-item {
+    padding: 4px 0;
+}
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+}
+</style>

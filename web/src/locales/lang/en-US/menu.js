@@ -32,4 +32,9 @@ export default {
     'menu.account': 'Account',
     'menu.account.trigger': 'Trigger Error',
     'menu.account.logout': 'Logout',
+    tools: 'System Tools',
+    aiHost: 'AI Hosting',
+    aiHostRuleForm: 'Add Rule',
+    aiHostRuleEdit: 'Edit Rule',
+    materialWarn: 'Material Alert',
 }
