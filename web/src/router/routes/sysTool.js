@@ -1,4 +1,4 @@
-import { ToolOutlined, RobotOutlined } from '@ant-design/icons-vue'
+import { ToolOutlined, RobotOutlined, FieldNumberOutlined } from '@ant-design/icons-vue'
 
 export default [
     {
@@ -47,6 +47,44 @@ export default [
                             keepAlive: false,
                             permission: '*',
                             active: 'aiHost',
+                        },
+                    },
+                ],
+            },
+            {
+                path: 'hostField',
+                name: 'hostField',
+                component: 'aiHost/FieldList.vue',
+                meta: {
+                    icon: FieldNumberOutlined,
+                    title: '字段管理',
+                    isMenu: true,
+                    keepAlive: true,
+                    permission: '*',
+                },
+                children: [
+                    {
+                        path: 'form',
+                        name: 'hostFieldForm',
+                        component: 'aiHost/FieldForm.vue',
+                        meta: {
+                            title: '新增字段',
+                            isMenu: false,
+                            keepAlive: false,
+                            permission: '*',
+                            active: 'hostField',
+                        },
+                    },
+                    {
+                        path: 'edit/:id',
+                        name: 'hostFieldEdit',
+                        component: 'aiHost/FieldForm.vue',
+                        meta: {
+                            title: '编辑字段',
+                            isMenu: false,
+                            keepAlive: false,
+                            permission: '*',
+                            active: 'hostField',
                         },
                     },
                 ],

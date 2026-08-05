@@ -19,12 +19,13 @@
                     v-model:value="item.time"
                     placeholder="时间范围"
                     style="width: 120px"
-                    :options="timeOptions" />
+                    :options="dimensionOptions" />
                 <a-select
                     v-model:value="item.metric"
                     placeholder="监控指标"
                     style="width: 140px"
-                    :options="metricOptions" />
+                    :options="metricOptions"
+                    @change="(val) => onMetricChange(item, val)" />
                 <a-select
                     v-model:value="item.operator"
                     placeholder="比较"
@@ -40,7 +41,7 @@
                     v-model:value="item.unit"
                     placeholder="单位"
                     style="width: 90px"
-                    :options="unitOptions" />
+                    :options="getUnitOptions(item.metric)" />
                 <a-button
                     type="link"
                     danger
@@ -64,8 +65,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { getHostFieldAll } from '@/apis/modules/hostField'
 
 const props = defineProps({
     modelValue: { type: Object, default: () => ({ logic: 'and', conditions: [] }) },
@@ -73,19 +75,10 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const timeOptions = [
-    { label: '当天', value: 'today' },
-    { label: '近7天', value: 'last_7d' },
-    { label: '近30天', value: 'last_30d' },
-]
-const metricOptions = [
-    { label: '消耗', value: 'cost' },
-    { label: '展现量', value: 'impression' },
-    { label: '点击量', value: 'click' },
-    { label: '转化数', value: 'conversion' },
-    { label: '平均转化成本', value: 'cpa' },
-    { label: 'ROI', value: 'roi' },
-]
+const dimensionOptions = ref([])
+const metricOptions = ref([])
+const metricMap = ref({})
+
 const operatorOptions = [
     { label: '大于等于', value: '>=' },
     { label: '小于等于', value: '<=' },
@@ -93,11 +86,36 @@ const operatorOptions = [
     { label: '小于', value: '<' },
     { label: '等于', value: '==' },
 ]
-const unitOptions = [
-    { label: '元', value: 'yuan' },
-    { label: '个', value: 'count' },
-    { label: '%', value: 'percent' },
-]
+
+const fetchFields = async () => {
+    try {
+        const res = await getHostFieldAll()
+        const list = res.data || []
+        dimensionOptions.value = list
+            .filter((item) => item.cate === 'dimension')
+            .map((item) => ({ label: item.name, value: item.field }))
+        const metrics = list.filter((item) => item.cate === 'metric')
+        metricOptions.value = metrics.map((item) => ({ label: item.name, value: item.field }))
+        const map = {}
+        metrics.forEach((item) => {
+            map[item.field] = item
+        })
+        metricMap.value = map
+    } catch (e) {
+        // ignore
+    }
+}
+
+const getUnitOptions = (metricField) => {
+    const metric = metricMap.value[metricField]
+    if (!metric || !metric.unit) return []
+    return [{ label: metric.unit, value: metric.unit }]
+}
+
+const onMetricChange = (item, val) => {
+    const metric = metricMap.value[val]
+    item.unit = metric?.unit || ''
+}
 
 const logic = ref(props.modelValue.logic || 'and')
 
@@ -118,17 +136,31 @@ watch(
 )
 
 const syncToParent = () => {
-    // eslint-disable-next-line no-unused-vars
-    emit('update:modelValue', { logic: logic.value, conditions: conditions.value.map(({ _id, ...rest }) => rest) })
+    emit(
+        'update:modelValue',
+        // eslint-disable-next-line no-unused-vars
+        { logic: logic.value, conditions: conditions.value.map(({ _id, ...rest }) => rest) }
+    )
 }
 watch([logic, conditions], syncToParent, { deep: true })
 
 const addCondition = () => {
-    conditions.value.push({ _id: genId(), time: 'today', metric: '', operator: '>=', value: undefined, unit: 'yuan' })
+    conditions.value.push({
+        _id: genId(),
+        time: 'today',
+        metric: '',
+        operator: '>=',
+        value: undefined,
+        unit: '',
+    })
 }
 const removeCondition = (index) => {
     if (conditions.value.length > 1) conditions.value.splice(index, 1)
 }
+
+onMounted(() => {
+    fetchFields()
+})
 </script>
 
 <style scoped>

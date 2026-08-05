@@ -293,6 +293,53 @@
                 ]
             },
             {
+                "code": "hostField",
+                "name": "字段管理",
+                "sequence": 85,
+                "type": "page",
+                "path": "/tools/hostField",
+                "status": "enabled",
+                "children": [
+                    {
+                        "code": "add",
+                        "name": "新建",
+                        "sequence": 8,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "edit",
+                        "name": "编辑",
+                        "sequence": 7,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "delete",
+                        "name": "删除",
+                        "sequence": 6,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "hostFieldForm",
+                        "name": "新增字段",
+                        "sequence": 10,
+                        "type": "page",
+                        "path": "/tools/hostField/form",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "hostFieldEdit",
+                        "name": "编辑字段",
+                        "sequence": 9,
+                        "type": "page",
+                        "path": "/tools/hostField/edit/:id",
+                        "status": "enabled"
+                    }
+                ]
+            },
+            {
                 "code": "materialWarn",
                 "name": "素材预警",
                 "sequence": 80,

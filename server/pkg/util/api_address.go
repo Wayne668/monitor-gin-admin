@@ -90,4 +90,25 @@ const (
 
 	// 【代理激励】激励政策信息查询 https://open.oceanengine.com/labels/12/docs/1869409753087043
 	APIIncentivePolicyBaseInfoGet = "https://api.oceanengine.com/open_api/2/file/incentive_policy_base_info/get/"
+
+	// 删除营销下素材 https://open.oceanengine.com/labels/7/docs/1797183832412380
+	APIPromotionMaterialDelete = "https://api.oceanengine.com/open_api/v3.0/promotion/material/delete/"
+
+	// 批量更新营销启用状态 https://open.oceanengine.com/labels/7/docs/1741031308559364
+	APIPromotionStatusUpdate = "https://api.oceanengine.com/open_api/v3.0/promotion/status/update/"
+
+	// 批量更新营销出价 https://open.oceanengine.com/labels/7/docs/1741031138305028
+	APIPromotionBidUpdate = "https://api.oceanengine.com/open_api/v3.0/promotion/bid/update/"
+
+	// 批量修改深度出价 https://open.oceanengine.com/labels/7/docs/1755355890182159
+	APIPromotionDeepBidUpdate = "https://api.oceanengine.com/open_api/v3.0/promotion/deepbid/update/"
+
+	// 批量更新营销预算 https://open.oceanengine.com/labels/7/docs/1741030872454148
+	APIPromotionBudgetUpdate = "https://api.oceanengine.com/open_api/v3.0/promotion/budget/update/"
+
+	// 批量更新项目预算 https://open.oceanengine.com/labels/7/docs/1755353873798155
+	APIProjectBudgetUpdate = "https://api.oceanengine.com/open_api/v3.0/project/budget/update/"
+
+	// 批量更新项目状态 https://open.oceanengine.com/labels/7/docs/1740941413906432
+	APIProjectStatusUpdate = "https://api.oceanengine.com/open_api/v3.0/project/status/update/"
 )

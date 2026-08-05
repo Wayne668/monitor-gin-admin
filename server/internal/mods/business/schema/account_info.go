@@ -21,5 +21,5 @@ type AccountInfo struct {
 }
 
 func (a *AccountInfo) TableName() string {
-	return config.C.FormatTableName("account_info")
+	return config.C.FormatTableName("nb_account_info")
 }

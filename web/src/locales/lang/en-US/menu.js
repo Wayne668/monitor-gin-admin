@@ -36,5 +36,8 @@ export default {
     aiHost: 'AI Hosting',
     aiHostRuleForm: 'Add Rule',
     aiHostRuleEdit: 'Edit Rule',
+    hostField: 'Field Management',
+    hostFieldForm: 'Add Field',
+    hostFieldEdit: 'Edit Field',
     materialWarn: 'Material Alert',
 }

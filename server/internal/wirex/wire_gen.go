@@ -10,6 +10,9 @@ import (
 	"context"
 	"monitor-gin-admin/internal/mods"
 	"monitor-gin-admin/internal/mods/business"
+	api2 "monitor-gin-admin/internal/mods/business/api"
+	biz2 "monitor-gin-admin/internal/mods/business/biz"
+	dal2 "monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/rbac"
 	"monitor-gin-admin/internal/mods/rbac/api"
 	"monitor-gin-admin/internal/mods/rbac/biz"
@@ -120,8 +123,28 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		LoggerAPI: apiLogger,
 		Casbinx:   casbinx,
 	}
-	businessBusiness := &business.Business{
+	hostRule := &dal2.HostRule{
 		DB: db,
+	}
+	bizHostRule := &biz2.HostRule{
+		HostRuleDAL: hostRule,
+	}
+	apiHostRule := &api2.HostRule{
+		HostRuleBIZ: bizHostRule,
+	}
+	hostField := &dal2.HostField{
+		DB: db,
+	}
+	bizHostField := &biz2.HostField{
+		HostFieldDAL: hostField,
+	}
+	apiHostField := &api2.HostField{
+		HostFieldBIZ: bizHostField,
+	}
+	businessBusiness := &business.Business{
+		DB:           db,
+		HostRuleAPI:  apiHostRule,
+		HostFieldAPI: apiHostField,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

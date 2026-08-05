@@ -36,5 +36,8 @@ export default {
     aiHost: 'AI托管',
     aiHostRuleForm: '新增托管规则',
     aiHostRuleEdit: '编辑托管规则',
+    hostField: '字段管理',
+    hostFieldForm: '新增字段',
+    hostFieldEdit: '编辑字段',
     materialWarn: '素材预警',
 }

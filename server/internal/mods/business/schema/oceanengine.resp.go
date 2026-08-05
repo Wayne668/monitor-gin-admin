@@ -59,3 +59,25 @@ type AccountDetail struct {
 	AdvCompanyName     string `json:"adv_company_name"`
 	SelfOperationTag   string `json:"self_operation_tag"`
 }
+
+type PromotionListItem struct {
+	PromotionId int64  `json:"promotion_id"`
+	Status      string `json:"status_first"`
+}
+
+type PromotionListResp struct {
+	Code      int               `json:"code"`
+	Message   string            `json:"message"`
+	Data      PromotionListData `json:"data"`
+	RequestId string            `json:"request_id"`
+}
+
+type PromotionListData struct {
+	List     []PromotionListItem `json:"list"`
+	PageInfo struct {
+		Page        int `json:"page"`
+		PageSize    int `json:"page_size"`
+		TotalNumber int `json:"total_number"`
+		TotalPage   int `json:"total_page"`
+	} `json:"page_info"`
+}
