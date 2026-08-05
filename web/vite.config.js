@@ -52,6 +52,7 @@ export default ({ mode }) => {
             __APP_INFO__: JSON.stringify({
                 version: pkg.version,
             }),
+            __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
         },
         plugins: [useVuePlugin(), useProgressPlugin(), useCompressPlugin(), useVisualizerPlugin(), useEslintPlugin()],
         server: useServer(),

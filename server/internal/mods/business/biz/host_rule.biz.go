@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"strconv"
 
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
@@ -11,7 +12,9 @@ import (
 
 // HostRule 托管规则业务逻辑
 type HostRule struct {
-	HostRuleDAL *dal.HostRule
+	HostRuleDAL      *dal.HostRule
+	PromotionBIZ     *Promotion
+	MaterialVideoBIZ *MaterialVideo
 }
 
 // Query 查询托管规则列表
@@ -47,4 +50,47 @@ func (a *HostRule) UpdateStatus(ctx context.Context, id uint, form *schema.HostR
 		return errors.NotFound("", "托管规则不存在")
 	}
 	return a.HostRuleDAL.UpdateStatus(ctx, id, form.Status)
+}
+
+// GetTargetsByAccount 根据账户ID列表和目标类型查询目标列表
+func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetByAccountReq) ([]schema.TargetItem, error) {
+	// 转换为 int64 切片（advertiser_id 为 bigint）
+	ids := make([]int64, 0, len(req.AccountIDs))
+	for _, id := range req.AccountIDs {
+		n, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return nil, errors.BadRequest("", "无效的账户ID: "+id)
+		}
+		ids = append(ids, n)
+	}
+
+	items := make([]schema.TargetItem, 0)
+	switch req.Target {
+	case "promotion":
+		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, ids, []string{"id", "promotion_name", "advertiser_id"})
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range promotions {
+			items = append(items, schema.TargetItem{
+				ID:           p.ID,
+				Name:         p.PromotionName,
+				AdvertiserID: strconv.FormatInt(p.AdvertiserID, 10),
+			})
+		}
+	case "creative":
+		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, ids, []string{"id", "file_name", "advertiser_id"})
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range materials {
+			items = append(items, schema.TargetItem{
+				ID:           m.ID,
+				Name:         m.FileName,
+				AdvertiserID: strconv.FormatInt(m.AdvertiserID, 10),
+			})
+		}
+	}
+
+	return items, nil
 }

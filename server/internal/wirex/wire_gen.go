@@ -141,10 +141,20 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiHostField := &api2.HostField{
 		HostFieldBIZ: bizHostField,
 	}
+	accountInfo := &dal2.AccountInfo{
+		DB: db,
+	}
+	bizAccountInfo := &biz2.AccountInfo{
+		AccountInfoDAL: accountInfo,
+	}
+	apiAccountInfo := &api2.AccountInfo{
+		AccountInfoBIZ: bizAccountInfo,
+	}
 	businessBusiness := &business.Business{
-		DB:           db,
-		HostRuleAPI:  apiHostRule,
-		HostFieldAPI: apiHostField,
+		DB:             db,
+		HostRuleAPI:    apiHostRule,
+		HostFieldAPI:   apiHostField,
+		AccountInfoAPI: apiAccountInfo,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

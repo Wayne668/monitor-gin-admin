@@ -28,7 +28,7 @@
                         v-for="item in filteredList"
                         :key="item.id"
                         class="account-item">
-                        <a-checkbox :value="item.id">{{ item.name }}</a-checkbox>
+                        <a-checkbox :value="item.id">{{ item.id }} （{{ item.name }}）</a-checkbox>
                     </div>
                 </a-checkbox-group>
                 <a-empty
@@ -61,6 +61,18 @@
                     v-if="selectedItems.length === 0"
                     description="暂未选择" />
             </div>
+            <div
+                v-if="showConfirmBtn"
+                class="panel-footer">
+                <a-button
+                    type="primary"
+                    size="small"
+                    :loading="loading"
+                    :disabled="selectedItems.length === 0"
+                    @click="handleConfirm">
+                    确定
+                </a-button>
+            </div>
         </div>
     </div>
 </template>
@@ -68,16 +80,22 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import { getTargetByAccount } from '@/apis/modules/hostRule'
 
 const props = defineProps({
     options: { type: Array, default: () => [] },
     modelValue: { type: Array, default: () => [] },
+    target: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'targets-loaded'])
 
 const keyword = ref('')
 const checkedKeys = ref([...props.modelValue])
+const loading = ref(false)
+
+const showConfirmBtn = computed(() => props.target === 'creative' || props.target === 'promotion')
 
 const filteredList = computed(() => {
     const kw = keyword.value.trim().toLowerCase()
@@ -108,6 +126,27 @@ const removeItem = (id) => {
 }
 const clearAll = () => {
     checkedKeys.value = []
+}
+
+const handleConfirm = async () => {
+    if (selectedItems.value.length === 0) {
+        message.warning('请至少选择一个账户')
+        return
+    }
+    loading.value = true
+    try {
+        const res = await getTargetByAccount({
+            target: props.target,
+            accountIds: [...checkedKeys.value],
+        })
+        const items = res?.data || []
+        message.success(`已加载 ${items.length} 条目标数据`)
+        emit('targets-loaded', items)
+    } catch (e) {
+        // 错误信息由请求拦截器统一处理
+    } finally {
+        loading.value = false
+    }
 }
 
 watch(
@@ -141,10 +180,12 @@ watch(
 .left-panel {
     flex: 1;
     min-width: 0;
+    max-width: 50%;
 }
 .right-panel {
-    width: 280px;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
+    max-width: 40%;
 }
 .panel-header {
     padding: 10px 12px;
@@ -162,12 +203,13 @@ watch(
     max-height: 280px;
     min-height: 200px;
 }
+.panel-footer {
+    padding: 8px 12px;
+    border-top: 1px solid #f0f0f0;
+    background: #fafafa;
+    text-align: right;
+}
 .account-item {
     padding: 4px 0;
-}
-.tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
 }
 </style>

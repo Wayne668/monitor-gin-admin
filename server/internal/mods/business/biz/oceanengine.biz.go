@@ -140,3 +140,64 @@ func (o *Oceanengine) GetRefPromotionData(accessToken string, advertiserId int64
 	}
 	return allList, nil
 }
+
+func (o *Oceanengine) GetVideoMaterial(accessToken string, advertiserId int64, startDate, endDate string) ([]schema.MaterialVideo, error) {
+	pageSize := 50
+	req := map[string]interface{}{
+		"advertiser_id": advertiserId,
+		"filtering": map[string]string{
+			"start_time": startDate,
+			"end_time":   endDate,
+		},
+		"page_size": pageSize,
+	}
+
+	page := 1
+	record := make([]schema.MaterialVideo, 0)
+	for {
+		req["page"] = page
+		var resp schema.ADVideoListResp
+		if err := util.DoGetRequestWithJsonParams(accessToken, util.APIFileVideoGet, req, &resp); err != nil {
+			return nil, fmt.Errorf("请求AD视频列表失败: %w", err)
+		}
+		if resp.Code != 0 {
+			return nil, fmt.Errorf("AD视频列表返回错误: code=%d msg=%s", resp.Code, resp.Message)
+		}
+
+		for _, item := range resp.Data.List {
+			labels := ""
+			if len(item.Labels) > 0 {
+				for i, p := range item.Labels {
+					if i > 0 {
+						labels += ","
+					}
+					labels += p
+				}
+			}
+
+			info := schema.MaterialVideo{
+				VideoID:      item.VideoID,
+				AdvertiserID: advertiserId,
+				MaterialID:   item.MaterialID,
+				Signature:    item.Signature,
+				FileName:     item.FileName,
+				PosterURL:    item.PosterURL,
+				Labels:       labels,
+			}
+			if item.CreateTime != "" {
+				if t, err := time.Parse("2006-01-02 15:04:05", item.CreateTime); err == nil {
+					info.CreatedAt = t
+				}
+			}
+
+			record = append(record, info)
+		}
+
+		if page*pageSize >= resp.Data.PageInfo.TotalNumber || len(resp.Data.List) == 0 {
+			break
+		}
+		page++
+		time.Sleep(150 * time.Millisecond)
+	}
+	return record, nil
+}

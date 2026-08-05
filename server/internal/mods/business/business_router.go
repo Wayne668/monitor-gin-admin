@@ -12,10 +12,11 @@ import (
 )
 
 type Business struct {
-	DB           *gorm.DB
-	HostRuleAPI  *api.HostRule
-	HostFieldAPI *api.HostField
-	CronTab      *biz.Crontab
+	DB             *gorm.DB
+	HostRuleAPI    *api.HostRule
+	HostFieldAPI   *api.HostField
+	AccountInfoAPI *api.AccountInfo
+	CronTab        *biz.Crontab
 }
 
 func (a *Business) Init(ctx context.Context) error {
@@ -31,6 +32,8 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		hostRule.PATCH(":id/status", a.HostRuleAPI.UpdateStatus)
 	}
 
+	v1.POST("get-target-by-account", a.HostRuleAPI.GetTargetsByAccount)
+
 	hostField := v1.Group("host-fields")
 	{
 		hostField.GET("", a.HostFieldAPI.Query)
@@ -39,6 +42,8 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		hostField.PUT(":id", a.HostFieldAPI.Update)
 		hostField.DELETE(":id", a.HostFieldAPI.Delete)
 	}
+
+	v1.GET("account-list", a.AccountInfoAPI.FindEnabledAdvertisers)
 	return nil
 }
 

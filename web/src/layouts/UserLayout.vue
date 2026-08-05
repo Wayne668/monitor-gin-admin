@@ -60,6 +60,7 @@ import { TranslationOutlined } from '@ant-design/icons-vue'
 
 import storage from '@/utils/storage'
 import { useI18n } from 'vue-i18n'
+import ActionButton from './components/ActionButton.vue'
 const { locale } = useI18n()
 defineOptions({
     name: 'UserLayout',

@@ -61,8 +61,11 @@ type AccountDetail struct {
 }
 
 type PromotionListItem struct {
-	PromotionId int64  `json:"promotion_id"`
-	Status      string `json:"status_first"`
+	PromotionId   int64  `json:"promotion_id"`
+	PromotionName string `json:"promotion_name"`
+	StatusFirst   string `json:"status_first"`
+	StatusSecond  string `json:"status_second"`
+	OptStatus     string `json:"opt_status"`
 }
 
 type PromotionListResp struct {
@@ -80,4 +83,39 @@ type PromotionListData struct {
 		TotalNumber int `json:"total_number"`
 		TotalPage   int `json:"total_page"`
 	} `json:"page_info"`
+}
+
+type ADVideoListResp struct {
+	Code      int             `json:"code"`
+	Message   string          `json:"message"`
+	Data      ADVideoListData `json:"data"`
+	RequestID string          `json:"request_id"`
+}
+
+type ADVideoListData struct {
+	List     []ADVideoItem     `json:"list"`
+	PageInfo VideoListPageInfo `json:"page_info"`
+}
+
+type ADVideoItem struct {
+	VideoID    string   `json:"video_id"`
+	MaterialID int64    `json:"material_id"`
+	Signature  string   `json:"signature"`
+	FileName   string   `json:"file_name"`
+	VideoURL   string   `json:"video_url"`
+	PosterURL  string   `json:"poster_url"`
+	Labels     []string `json:"labels"`
+	Size       int      `json:"size"`
+	Duration   float64  `json:"duration"`
+	Source     string   `json:"source"`
+	CreateTime string   `json:"create_time"`
+	Width      int      `json:"width"`
+	Height     int      `json:"height"`
+}
+
+type VideoListPageInfo struct {
+	Page        int `json:"page"`
+	PageSize    int `json:"page_size"`
+	TotalPage   int `json:"total_page"`
+	TotalNumber int `json:"total_number"`
 }

@@ -30,8 +30,13 @@
                     v-model:value="form.target"
                     button-style="solid">
                     <a-radio-button value="account">账户</a-radio-button>
-                    <a-radio-button value="project">项目</a-radio-button>
-                    <a-radio-button value="ad">广告</a-radio-button>
+                    <a-radio-button
+                        value="project"
+                        disabled>
+                        项目
+                    </a-radio-button>
+                    <a-radio-button value="promotion">广告</a-radio-button>
+                    <a-radio-button value="creative">创意</a-radio-button>
                 </a-radio-group>
             </a-form-item>
 
@@ -40,26 +45,38 @@
                 name="selectedAccountIds">
                 <AccountTransfer
                     v-model="form.selectedAccountIds"
-                    :options="accountOptions" />
+                    :options="accountOptions"
+                    :target="form.target"
+                    @targets-loaded="handleTargetsLoaded" />
             </a-form-item>
 
             <!-- 条件和操作 -->
             <a-divider orientation="left">条件和操作</a-divider>
 
-            <div style="display: flex; gap: 20px">
-                <div style="flex: 1">
-                    <ConditionBuilder v-model="form.conditionConfig" />
-                </div>
+            <a-form-item :wrapper-col="{ span: 24 }">
+                <div style="display: flex; gap: 20px; margin-left: 100px">
+                    <div style="flex: 1 1 0%; min-width: 0; max-width: 60%; overflow: auto">
+                        <ConditionBuilder v-model="form.conditionConfig" />
+                    </div>
 
-                <div style="flex: 1; border: 1px solid #d9d9d9; border-radius: 6px; padding: 16px">
-                    <div style="font-weight: bold; margin-bottom: 12px">就执行以下操作</div>
-                    <a-select
-                        v-model:value="form.action"
-                        placeholder="请选择执行动作"
-                        style="width: 100%"
-                        :options="actionOptions" />
+                    <div
+                        style="
+                            flex: 1 1 0%;
+                            min-width: 0;
+                            max-width: 25%;
+                            border: 1px solid #d9d9d9;
+                            border-radius: 6px;
+                            padding: 16px;
+                        ">
+                        <div style="font-weight: bold; margin-bottom: 12px">就执行以下操作</div>
+                        <a-select
+                            v-model:value="form.action"
+                            placeholder="请选择执行动作"
+                            style="width: 100%"
+                            :options="actionOptions" />
+                    </div>
                 </div>
-            </div>
+            </a-form-item>
 
             <!-- 执行和通知频率 -->
             <a-divider orientation="left">执行和通知频率</a-divider>
@@ -133,11 +150,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import ConditionBuilder from './components/ConditionBuilder.vue'
 import AccountTransfer from './components/AccountTransfer.vue'
+import { getEnabledAccountList } from '@/apis/modules/accountInfo'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,30 +163,61 @@ const isEdit = computed(() => route.name === 'aiHostRuleEdit')
 const formRef = ref()
 const saving = ref(false)
 
-const actionOptions = [
-    { label: '暂停广告', value: 'pause' },
-    { label: '调整预算', value: 'adjustBudget' },
+const promotionActionOptions = [
+    { label: '暂停广告 + 发送通知', value: 'pause' },
+    { label: '启动广告 + 发送通知', value: 'restart' },
     { label: '发送通知', value: 'notify' },
     { label: '一键起量', value: 'boost' },
 ]
 
-const accountOptions = ref([
-    { id: '18364286876574', name: '相约派对-曝光-30-0030-79过渡' },
-    { id: '1833434044638763', name: 'Ta星-nw-素材' },
-    { id: '184686325214410', name: '设备-SW-素材' },
-    { id: '185978646929227', name: '颇为-闪耀-iOS-头条-SC-01-首付-4516' },
-    { id: '1675308379', name: '等爱-颇为-每件-7h' },
-    { id: '1836428598491001', name: '好甜-nw-素材' },
-    { id: '1836428588251546', name: '相约派对-nw-素材' },
-    { id: '1717', name: '头杀-颇为-暖心绿洲-安卓-7H-4' },
-])
+const creativeActionOptions = [
+    { label: '暂停素材 + 发送通知', value: 'pause' },
+    { label: '启动素材 + 发送通知', value: 'restart' },
+    { label: '删除素材 + 发送通知', value: 'delete' },
+    { label: '发送通知', value: 'notify' },
+]
+
+// 根据 target 类型动态切换操作选项
+const actionOptions = computed(() => {
+    if (form.target === 'creative') return creativeActionOptions
+    if (form.target === 'promotion') return promotionActionOptions
+    return []
+})
+
+// 切换 target 时清空已选 action，避免选项不匹配
+watch(
+    () => form.target,
+    () => {
+        form.action = undefined
+    }
+)
+
+const accountOptions = ref([])
+
+const loadAccounts = async () => {
+    try {
+        const res = await getEnabledAccountList()
+        accountOptions.value = (res.data || []).map((item) => ({
+            id: String(item.advertiserId),
+            name: item.advertiserName,
+        }))
+    } catch (e) {
+        message.error('加载账户列表失败')
+    }
+}
+
+onMounted(() => {
+    loadAccounts()
+})
 
 const form = reactive({
     target: 'ad',
     selectedAccountIds: [],
+    targetPromotion: [],
+    targetMaterial: [],
     conditionConfig: {
         logic: 'and',
-        conditions: [{ time: 'today', metric: 'cost', operator: '>=', value: 100, unit: 'yuan' }],
+        conditions: [{ time: '', metric: '', operator: '', value: '', unit: '' }],
     },
     action: undefined,
     checkFreq: '30',
@@ -177,6 +226,14 @@ const form = reactive({
     name: '',
     agreeTerms: false,
 })
+
+const handleTargetsLoaded = (items) => {
+    if (form.target === 'promotion') {
+        form.targetPromotion = items
+    } else if (form.target === 'creative') {
+        form.targetMaterial = items
+    }
+}
 
 const rules = reactive({
     target: [{ required: true, message: '请选择托管目标', trigger: 'change' }],

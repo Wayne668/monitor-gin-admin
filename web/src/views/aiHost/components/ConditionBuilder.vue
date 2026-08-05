@@ -18,30 +18,26 @@
                 <a-select
                     v-model:value="item.time"
                     placeholder="时间范围"
-                    style="width: 120px"
+                    class="col-time"
                     :options="dimensionOptions" />
                 <a-select
                     v-model:value="item.metric"
                     placeholder="监控指标"
-                    style="width: 140px"
+                    class="col-metric"
                     :options="metricOptions"
                     @change="(val) => onMetricChange(item, val)" />
                 <a-select
                     v-model:value="item.operator"
                     placeholder="比较"
-                    style="width: 110px"
+                    class="col-operator"
                     :options="operatorOptions" />
                 <a-input-number
                     v-model:value="item.value"
                     :min="0"
                     :precision="2"
                     placeholder="阈值"
-                    style="width: 140px" />
-                <a-select
-                    v-model:value="item.unit"
-                    placeholder="单位"
-                    style="width: 90px"
-                    :options="getUnitOptions(item.metric)" />
+                    class="col-value" />
+                <span class="col-unit">{{ getUnitText(item.metric) }}</span>
                 <a-button
                     type="link"
                     danger
@@ -106,10 +102,8 @@ const fetchFields = async () => {
     }
 }
 
-const getUnitOptions = (metricField) => {
-    const metric = metricMap.value[metricField]
-    if (!metric || !metric.unit) return []
-    return [{ label: metric.unit, value: metric.unit }]
+const getUnitText = (metricField) => {
+    return metricMap.value[metricField]?.unit || ''
 }
 
 const onMetricChange = (item, val) => {
@@ -169,6 +163,13 @@ onMounted(() => {
     border: 1px solid #f0f0f0;
     border-radius: 6px;
     padding: 16px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.condition-list {
+    width: 100%;
+    min-width: 0;
 }
 .builder-header {
     display: flex;
@@ -186,5 +187,35 @@ onMounted(() => {
     gap: 8px;
     align-items: center;
     margin-bottom: 10px;
+    width: 100%;
+    min-width: 0;
+}
+/* 弹性宽度：随父容器缩放，同时保留最小可用宽度 */
+.col-time {
+    flex: 1 1 0%;
+    min-width: 100px;
+}
+.col-metric {
+    flex: 1 1 0%;
+    min-width: 100px;
+}
+.col-operator {
+    flex: 1 1 0%;
+    min-width: 100px;
+}
+.col-value {
+    flex: 1 1 0%;
+    min-width: 100px;
+}
+.col-unit {
+    flex: 1 1 auto;
+    min-width: 15px;
+    color: #595959;
+    font-size: 13px;
+}
+/* 让 a-select/a-input-number 根 div 填满 class 容器 */
+.condition-row :deep(.ant-select),
+.condition-row :deep(.ant-input-number) {
+    width: 100% !important;
 }
 </style>

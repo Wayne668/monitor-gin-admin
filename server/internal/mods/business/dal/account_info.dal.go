@@ -1,6 +1,8 @@
 package dal
 
 import (
+	"context"
+
 	"monitor-gin-admin/internal/mods/business/schema"
 	"monitor-gin-admin/pkg/errors"
 	"time"
@@ -50,6 +52,15 @@ func (a *AccountInfo) FilterExistingAdvertiserIDs(advertiserIDs []int64) ([]int6
 	}
 
 	return newIDs, nil
+}
+
+// FindEnabledAdvertisers 查询状态为 STATUS_ENABLE 的账户列表
+func (a *AccountInfo) FindEnabledAdvertisers(ctx context.Context) ([]schema.AccountInfo, error) {
+	var list []schema.AccountInfo
+	err := a.DB.Where("advertiser_status = ?", "STATUS_ENABLE").
+		Order("advertiser_id ASC").
+		Find(&list).Error
+	return list, errors.WithStack(err)
 }
 
 // SaveToTable 批量保存账户详情到数据库

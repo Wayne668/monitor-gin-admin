@@ -75,3 +75,23 @@ func (a *HostRule) UpdateStatus(c *gin.Context) {
 	}
 	util.ResOK(c)
 }
+
+// GetTargetsByAccount 根据账户获取目标列表
+func (a *HostRule) GetTargetsByAccount(c *gin.Context) {
+	ctx := c.Request.Context()
+	req := new(schema.TargetByAccountReq)
+	if err := util.ParseJSON(c, req); err != nil {
+		util.ResError(c, err)
+		return
+	} else if err := req.Validate(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+
+	items, err := a.HostRuleBIZ.GetTargetsByAccount(ctx, req)
+	if err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, items)
+}

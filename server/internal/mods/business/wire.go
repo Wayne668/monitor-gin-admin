@@ -17,4 +17,12 @@ var Set = wire.NewSet(
 	wire.Struct(new(dal.HostField), "*"),
 	wire.Struct(new(biz.HostField), "*"),
 	wire.Struct(new(api.HostField), "*"),
+	wire.Struct(new(dal.AccountInfo), "*"),
+	wire.Struct(new(biz.AccountInfo), "*"),
+	wire.Struct(new(api.AccountInfo), "*"),
+	wire.Struct(new(dal.Promotion), "*"),
+	wire.Struct(new(biz.Promotion), "*"),
+	wire.Struct(new(dal.MaterialVideo), "*"),
+	wire.Struct(new(biz.MaterialVideo), "*"),
+	wire.Struct(new(biz.Oceanengine), "*"),
 )

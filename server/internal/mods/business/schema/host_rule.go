@@ -74,3 +74,20 @@ type HostRuleUpdateStatusForm struct {
 func (a *HostRuleUpdateStatusForm) Validate() error {
 	return nil
 }
+
+// TargetByAccountReq 根据账户获取目标列表请求
+type TargetByAccountReq struct {
+	Target     string   `json:"target" binding:"required,oneof=promotion creative"`
+	AccountIDs []string `json:"accountIds" binding:"required,min=1"`
+}
+
+func (a *TargetByAccountReq) Validate() error {
+	return nil
+}
+
+// TargetItem 目标项
+type TargetItem struct {
+	ID           uint   `json:"id" gorm:"primarykey"`
+	Name         string `json:"name"`
+	AdvertiserID string `json:"advertiserId"`
+}
