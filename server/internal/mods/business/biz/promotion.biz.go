@@ -33,7 +33,7 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 		return nil, nil
 	}
 
-	apiItems, err := a.fetchFromOceanengine(ctx, accountIDs, accessToken)
+	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("从Oceanengine拉取广告数据失败: %w", err)
 	}
@@ -49,8 +49,8 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 	return a.PromotionDAL.FindByAccountIDs(ctx, accountIDs, fields)
 }
 
-// fetchFromOceanengine 调用Oceanengine API拉取广告数据
-func (a *Promotion) fetchFromOceanengine(ctx context.Context, accountIDs []int64, accessToken string) ([]schema.Promotion, error) {
+// FetchFromOceanengine 调用Oceanengine API拉取广告数据
+func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, accessToken string) ([]schema.Promotion, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}

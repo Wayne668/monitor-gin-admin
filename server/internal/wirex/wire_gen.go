@@ -167,13 +167,24 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiCrontab := &api2.Crontab{
 		CrontabBIZ: bizCrontab,
 	}
+	deleteUnauditedMaterial := &dal2.DeleteUnauditedMaterial{
+		DB: db,
+	}
+	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
+		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,
+		Oceanengine:                &biz2.Oceanengine{},
+	}
+	apiDeleteUnauditedMaterial := &api2.DeleteUnauditedMaterial{
+		DeleteUnauditedMaterialBIZ: bizDeleteUnauditedMaterial,
+	}
 	businessBusiness := &business.Business{
-		DB:             db,
-		HostRuleAPI:    apiHostRule,
-		HostFieldAPI:   apiHostField,
-		AccountInfoAPI: apiAccountInfo,
-		AgentTokenAPI:  apiAgentToken,
-		CrontabAPI:     apiCrontab,
+		DB:                         db,
+		HostRuleAPI:                apiHostRule,
+		HostFieldAPI:               apiHostField,
+		AccountInfoAPI:             apiAccountInfo,
+		AgentTokenAPI:              apiAgentToken,
+		DeleteUnauditedMaterialAPI: apiDeleteUnauditedMaterial,
+		CrontabAPI:                 apiCrontab,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

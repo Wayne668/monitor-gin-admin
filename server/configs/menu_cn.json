@@ -348,6 +348,24 @@
                 "status": "enabled"
             },
             {
+                "code": "materialDel",
+                "name": "素材删除",
+                "sequence": 78,
+                "type": "page",
+                "path": "/tools/materialDel",
+                "status": "enabled",
+                "children": [
+                    {
+                        "code": "materialDelForm",
+                        "name": "素材删除操作",
+                        "sequence": 9,
+                        "type": "page",
+                        "path": "/tools/materialDel/form",
+                        "status": "enabled"
+                    }
+                ]
+            },
+            {
                 "code": "agentToken",
                 "name": "账户token",
                 "sequence": 75,

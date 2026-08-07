@@ -13,7 +13,8 @@ import (
 
 // HostRule 托管规则API
 type HostRule struct {
-	HostRuleBIZ *biz.HostRule
+	HostRuleBIZ    *biz.HostRule
+	OceanengineBIZ *biz.Oceanengine
 }
 
 // Query 查询托管规则列表

@@ -40,5 +40,6 @@ export default {
     hostFieldForm: 'Add Field',
     hostFieldEdit: 'Edit Field',
     materialWarn: 'Material Alert',
+    materialDel: 'Material Delete',
     agentToken: 'Account Token',
 }

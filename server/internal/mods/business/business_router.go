@@ -10,12 +10,13 @@ import (
 )
 
 type Business struct {
-	DB             *gorm.DB
-	HostRuleAPI    *api.HostRule
-	HostFieldAPI   *api.HostField
-	AccountInfoAPI *api.AccountInfo
-	AgentTokenAPI  *api.AgentToken
-	CrontabAPI     *api.Crontab
+	DB                         *gorm.DB
+	HostRuleAPI                *api.HostRule
+	HostFieldAPI               *api.HostField
+	AccountInfoAPI             *api.AccountInfo
+	AgentTokenAPI              *api.AgentToken
+	DeleteUnauditedMaterialAPI *api.DeleteUnauditedMaterial
+	CrontabAPI                 *api.Crontab
 }
 
 func (a *Business) Init(ctx context.Context) error {
@@ -35,8 +36,6 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		hostRule.PATCH(":id/status", a.HostRuleAPI.UpdateStatus)
 	}
 
-	v1.POST("get-target-by-account", a.HostRuleAPI.GetTargetsByAccount)
-
 	hostField := v1.Group("host-fields")
 	{
 		hostField.GET("", a.HostFieldAPI.Query)
@@ -46,8 +45,6 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		hostField.DELETE(":id", a.HostFieldAPI.Delete)
 	}
 
-	v1.GET("account-list", a.AccountInfoAPI.FindEnabledAdvertisers)
-
 	agentToken := v1.Group("agent-tokens")
 	{
 		agentToken.GET("", a.AgentTokenAPI.Query)
@@ -56,6 +53,20 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		agentToken.PUT(":id", a.AgentTokenAPI.Update)
 		agentToken.DELETE(":id", a.AgentTokenAPI.Delete)
 	}
+
+	{
+		v1.GET("account-list", a.AccountInfoAPI.FindEnabledAdvertisers)
+		v1.POST("get-target-by-account", a.HostRuleAPI.GetTargetsByAccount)
+		v1.GET("get-unaudited-material", a.DeleteUnauditedMaterialAPI.GetUnAudititedMaterial)
+		v1.POST("delete-unaudited-material", a.DeleteUnauditedMaterialAPI.DeleteUnAudititedMaterial)
+	}
+
+	deleteMaterial := v1.Group("delete-unaudited-material-records")
+	{
+		deleteMaterial.GET("", a.DeleteUnauditedMaterialAPI.Query)
+		deleteMaterial.GET(":id", a.DeleteUnauditedMaterialAPI.Get)
+	}
+
 	return nil
 }
 

@@ -1,4 +1,4 @@
-import { ToolOutlined, RobotOutlined, FieldNumberOutlined, KeyOutlined } from '@ant-design/icons-vue'
+import { ToolOutlined, RobotOutlined, FieldNumberOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 
 export default [
     {
@@ -99,6 +99,32 @@ export default [
                     keepAlive: true,
                     permission: '*',
                 },
+            },
+            {
+                path: 'materialDel',
+                name: 'materialDel',
+                component: 'aiHost/MaterialDel.vue',
+                meta: {
+                    icon: DeleteOutlined,
+                    title: '素材删除',
+                    isMenu: true,
+                    keepAlive: true,
+                    permission: '*',
+                },
+                children: [
+                    {
+                        path: 'form',
+                        name: 'materialDelForm',
+                        component: 'aiHost/MaterialDelForm.vue',
+                        meta: {
+                            title: '素材删除操作',
+                            isMenu: false,
+                            keepAlive: false,
+                            permission: '*',
+                            active: 'materialDel',
+                        },
+                    },
+                ],
             },
             {
                 path: 'agentToken',

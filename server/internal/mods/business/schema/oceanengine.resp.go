@@ -61,11 +61,22 @@ type AccountDetail struct {
 }
 
 type PromotionListItem struct {
-	PromotionId   int64  `json:"promotion_id"`
-	PromotionName string `json:"promotion_name"`
-	StatusFirst   string `json:"status_first"`
-	StatusSecond  string `json:"status_second"`
-	OptStatus     string `json:"opt_status"`
+	PromotionId        int64               `json:"promotion_id"`
+	PromotionName      string              `json:"promotion_name"`
+	PromotionMaterials *PromotionMaterials `json:"promotion_materials"`
+	AdvertiserID       int64               `json:"advertiser_id"`
+	StatusFirst        string              `json:"status_first"`
+	StatusSecond       string              `json:"status_second"`
+	OptStatus          string              `json:"opt_status"`
+}
+
+type PromotionMaterials struct {
+	VideoMaterialList []VideoMaterialItem `json:"video_material_list"`
+}
+
+type VideoMaterialItem struct {
+	MaterialID     int64  `json:"material_id"`
+	MaterialStatus string `json:"material_status"`
 }
 
 type PromotionListResp struct {
