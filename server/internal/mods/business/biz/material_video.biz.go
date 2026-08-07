@@ -28,6 +28,10 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 	var allNewItems []schema.MaterialVideo
 
 	accessToken := "" // TODO: 从配置/上下文中获取 accessToken
+	if accessToken == "" {
+		// 未配置 accessToken，直接查询DB返回，避免调用API失败导致500
+		return a.MaterialVideoDAL.FindByAccountIDs(ctx, accountIDs, fields)
+	}
 
 	for _, advertiserID := range accountIDs {
 		lastUpdatedAt, hasRecord := lastSyncMap[advertiserID]

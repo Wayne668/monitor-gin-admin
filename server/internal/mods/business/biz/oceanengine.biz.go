@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"monitor-gin-admin/internal/mods/business/schema"
 	"monitor-gin-admin/pkg/util"
+	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -14,6 +16,45 @@ import (
 type Oceanengine struct{}
 
 var customReportBucket = util.NewTokenBucket(100*time.Millisecond, 10)
+
+// RefreshToken 刷新token
+func (o *Oceanengine) RefreshToken(token *schema.AgentToken) (*schema.AgentToken, error) {
+	// 构建请求参数
+	params := url.Values{}
+	params.Add("app_id", token.AppID)
+	params.Add("secret", token.AppSecret)
+	params.Add("grant_type", "refresh_token")
+	params.Add("refresh_token", token.RefreshToken)
+
+	// 发送请求
+	resp, err := http.Post(
+		util.RefreshToken,
+		"application/x-www-form-urlencoded",
+		strings.NewReader(params.Encode()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("发送请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 解析响应
+	var refreshResp schema.RefreshTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&refreshResp); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	// 检查响应状态
+	if refreshResp.Code != 0 {
+		return nil, fmt.Errorf("刷新token失败: %s", refreshResp.Message)
+	}
+
+	// 更新token信息
+	token.AccessToken = refreshResp.Data.AccessToken
+	token.RefreshToken = refreshResp.Data.RefreshToken
+	token.TokenTime = int64(time.Now().Unix())
+
+	return token, nil
+}
 
 func (o *Oceanengine) QueryCustomReport(accessToken string, req schema.CustomReportReq) (*schema.CustomReportResp, error) {
 	customReportBucket.Take()
@@ -200,4 +241,218 @@ func (o *Oceanengine) GetVideoMaterial(accessToken string, advertiserId int64, s
 		time.Sleep(150 * time.Millisecond)
 	}
 	return record, nil
+}
+
+// getADVideoTempUrl 获取AD视频临时URL：保存到浏览器本地缓存
+func (o *Oceanengine) GetADVideoTempUrl(videoIds []string, advertiserId int64, accessToken string) (map[string]string, error) {
+	result := make(map[string]string)
+	req := map[string]interface{}{
+		"advertiser_id": advertiserId,
+		"filtering": map[string]interface{}{
+			"video_ids": videoIds,
+		},
+		"page":      1,
+		"page_size": 100,
+	}
+
+	var resp schema.ADVideoListResp
+	if err := util.DoGetRequestWithJsonParams(accessToken, util.APIFileVideoGet, req, &resp); err != nil {
+		return nil, fmt.Errorf("请求AD视频URL失败: %w", err)
+	}
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("AD视频URL返回错误: code=%d msg=%s", resp.Code, resp.Message)
+	}
+	for _, item := range resp.Data.List {
+		if item.VideoURL != "" {
+			result[item.VideoID] = item.VideoURL
+		}
+	}
+	return result, nil
+}
+
+func (o *Oceanengine) UpdatePromotionStatus(optStatus string, promotionIDs []int64, advertiserId int64, accessToken string) (string, error) {
+	if len(promotionIDs) == 0 {
+		return "", fmt.Errorf("营销ID列表不能为空")
+	}
+	// 校验操作状态，仅允许 ENABLE / DISABLE
+	if optStatus != "ENABLE" && optStatus != "DISABLE" {
+		return "", fmt.Errorf("opt_status 仅允许 ENABLE 或 DISABLE，当前值: %s", optStatus)
+	}
+
+	// 接口限制 data 长度 1～10，按 10 个一批分批调用
+	const batchSize = 10
+	var (
+		lastReqID string
+		batchID   = 1
+	)
+
+	for start := 0; start < len(promotionIDs); start += batchSize {
+		end := start + batchSize
+		if end > len(promotionIDs) {
+			end = len(promotionIDs)
+		}
+		batch := promotionIDs[start:end]
+
+		// 构造 data 列表
+		data := make([]map[string]interface{}, 0, len(batch))
+		for _, pid := range batch {
+			data = append(data, map[string]interface{}{
+				"promotion_id": pid,
+				"opt_status":   optStatus,
+			})
+		}
+
+		// 构造请求体
+		reqBody := map[string]interface{}{
+			"advertiser_id": advertiserId,
+			"data":          data,
+		}
+
+		var resp struct {
+			Code      int    `json:"code"`
+			Message   string `json:"message"`
+			RequestID string `json:"request_id"`
+			Data      struct {
+				PromotionIDs []int64 `json:"promotion_ids"`
+				Errors       []struct {
+					PromotionID  int64  `json:"promotion_id"`
+					ErrorMessage string `json:"error_message"`
+				} `json:"errors"`
+			} `json:"data"`
+		}
+
+		if err := util.DoPostJSONRequest(accessToken, util.APIPromotionStatusUpdate, reqBody, &resp); err != nil {
+			return lastReqID, fmt.Errorf("第 %d 批更新营销状态请求失败: %w", batchID, err)
+		}
+		lastReqID = resp.RequestID
+
+		if resp.Code != 0 {
+			return lastReqID, fmt.Errorf("第 %d 批更新营销状态失败: code=%d message=%s", batchID, resp.Code, resp.Message)
+		}
+
+		// 记录失败的营销，便于上层定位
+		if len(resp.Data.Errors) > 0 {
+			failedIDs := make([]int64, 0, len(resp.Data.Errors))
+			for _, e := range resp.Data.Errors {
+				failedIDs = append(failedIDs, e.PromotionID)
+			}
+			return lastReqID, fmt.Errorf("第 %d 批部分营销更新失败: %v", batchID, failedIDs)
+		}
+
+		batchID++
+		// 批次之间小睡，避免触发频控
+		if start+batchSize < len(promotionIDs) {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	return lastReqID, nil
+}
+
+func (o *Oceanengine) UpdateMaterialStatus(optStatus string, materialIDs []int64, promotionID, advertiserId int64, accessToken string) (string, error) {
+	if len(materialIDs) == 0 {
+		return "", fmt.Errorf("素材ID列表不能为空")
+	}
+	// 校验操作状态，仅允许 DISABLE / ENABLE
+	if optStatus != "DISABLE" && optStatus != "ENABLE" {
+		return "", fmt.Errorf("opt_status 仅允许 DISABLE 或 ENABLE，当前值: %s", optStatus)
+	}
+
+	// 接口限制 data 长度 1～10，按 10 个一批分批调用
+	const batchSize = 10
+	var (
+		lastReqID string
+		batchID   = 1
+	)
+
+	for start := 0; start < len(materialIDs); start += batchSize {
+		end := start + batchSize
+		if end > len(materialIDs) {
+			end = len(materialIDs)
+		}
+		batch := materialIDs[start:end]
+
+		// 构造 data 列表
+		data := make([]map[string]interface{}, 0, len(batch))
+		for _, mid := range batch {
+			data = append(data, map[string]interface{}{
+				"material_id": mid,
+				"opt_status":  optStatus,
+			})
+		}
+
+		// 构造请求体：advertiser_id 使用字符串形式（与官方 Python 示例保持一致）
+		reqBody := map[string]interface{}{
+			"advertiser_id": strconv.FormatInt(advertiserId, 10),
+			"promotion_id":  strconv.FormatInt(promotionID, 10),
+			"data":          data,
+		}
+
+		var resp struct {
+			Code      int    `json:"code"`
+			Message   string `json:"message"`
+			RequestID string `json:"request_id"`
+			Data      struct {
+				PromotionID int64   `json:"promotion_id"`
+				MaterialIDs []int64 `json:"material_ids"`
+				Errors      []struct {
+					MaterialID int64  `json:"material_id"`
+					Message    string `json:"message"`
+				} `json:"errors"`
+			} `json:"data"`
+		}
+
+		if err := util.DoPostJSONRequest(accessToken, util.APIPromotionMaterialStatusUpdate, reqBody, &resp); err != nil {
+			return lastReqID, fmt.Errorf("第 %d 批更新素材状态请求失败: %w", batchID, err)
+		}
+		lastReqID = resp.RequestID
+
+		if resp.Code != 0 {
+			return lastReqID, fmt.Errorf("第 %d 批更新素材状态失败: code=%d message=%s", batchID, resp.Code, resp.Message)
+		}
+
+		// 记录失败的素材，便于上层定位
+		if len(resp.Data.Errors) > 0 {
+			failedIDs := make([]int64, 0, len(resp.Data.Errors))
+			for _, e := range resp.Data.Errors {
+				failedIDs = append(failedIDs, e.MaterialID)
+			}
+			return lastReqID, fmt.Errorf("第 %d 批部分素材更新失败: %v", batchID, failedIDs)
+		}
+
+		batchID++
+		// 批次之间小睡，避免触发频控
+		if start+batchSize < len(materialIDs) {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	return lastReqID, nil
+}
+
+func (o *Oceanengine) DeleteMaterialUnderPromotion(materialId, promotionID, advertiserId int64, accessToken string) (string, error) {
+	// 构造请求体：advertiser_id / promotion_id 使用字符串形式（与官方 Python 示例保持一致）
+	// material_id 为 number[]，接口仅支持传入 1 个素材
+	reqBody := map[string]interface{}{
+		"advertiser_id": strconv.FormatInt(advertiserId, 10),
+		"promotion_id":  strconv.FormatInt(promotionID, 10),
+		"material_id":   []int64{materialId},
+	}
+
+	var resp struct {
+		Code      int      `json:"code"`
+		Message   string   `json:"message"`
+		RequestID string   `json:"request_id"`
+		Data      struct{} `json:"data"`
+	}
+
+	if err := util.DoPostJSONRequest(accessToken, util.APIPromotionMaterialDelete, reqBody, &resp); err != nil {
+		return "", fmt.Errorf("删除营销下素材请求失败: %w", err)
+	}
+
+	if resp.Code != 0 {
+		return resp.RequestID, fmt.Errorf("删除营销下素材失败: code=%d message=%s", resp.Code, resp.Message)
+	}
+
+	return resp.RequestID, nil
 }

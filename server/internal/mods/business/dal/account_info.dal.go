@@ -5,6 +5,7 @@ import (
 
 	"monitor-gin-admin/internal/mods/business/schema"
 	"monitor-gin-admin/pkg/errors"
+	"monitor-gin-admin/pkg/util"
 	"time"
 
 	"gorm.io/gorm"
@@ -55,10 +56,20 @@ func (a *AccountInfo) FilterExistingAdvertiserIDs(advertiserIDs []int64) ([]int6
 }
 
 // FindEnabledAdvertisers 查询状态为 STATUS_ENABLE 的账户列表
-func (a *AccountInfo) FindEnabledAdvertisers(ctx context.Context) ([]schema.AccountInfo, error) {
+// fields 指定查询字段，为空则查询全部字段
+// limit 限制返回条数，<=0 时默认返回最新 100 条（按 updated_at 倒序）
+func (a *AccountInfo) FindEnabledAdvertisers(ctx context.Context, fields []string, limit int) ([]schema.AccountInfo, error) {
+	if limit <= 0 {
+		limit = 100
+	}
 	var list []schema.AccountInfo
-	err := a.DB.Where("advertiser_status = ?", "STATUS_ENABLE").
-		Order("advertiser_id ASC").
+	db := util.GetDB(ctx, a.DB).
+		Where("advertiser_status = ?", "STATUS_ENABLE")
+	if len(fields) > 0 {
+		db = db.Select(fields)
+	}
+	err := db.Order("updated_at DESC, advertiser_id ASC").
+		Limit(limit).
 		Find(&list).Error
 	return list, errors.WithStack(err)
 }

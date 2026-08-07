@@ -346,6 +346,72 @@
                 "type": "page",
                 "path": "/tools/materialWarn",
                 "status": "enabled"
+            },
+            {
+                "code": "agentToken",
+                "name": "账户token",
+                "sequence": 75,
+                "type": "page",
+                "path": "/tools/agentToken",
+                "status": "enabled",
+                "children": [
+                    {
+                        "code": "add",
+                        "name": "新建",
+                        "sequence": 8,
+                        "type": "button",
+                        "status": "enabled",
+                        "resources": [
+                            {
+                                "method": "POST",
+                                "path": "/api/v1/agent-tokens"
+                            }
+                        ]
+                    },
+                    {
+                        "code": "edit",
+                        "name": "编辑",
+                        "sequence": 7,
+                        "type": "button",
+                        "status": "enabled",
+                        "resources": [
+                            {
+                                "method": "PUT",
+                                "path": "/api/v1/agent-tokens/{id}"
+                            }
+                        ]
+                    },
+                    {
+                        "code": "delete",
+                        "name": "删除",
+                        "sequence": 6,
+                        "type": "button",
+                        "status": "enabled",
+                        "resources": [
+                            {
+                                "method": "DELETE",
+                                "path": "/api/v1/agent-tokens/{id}"
+                            }
+                        ]
+                    },
+                    {
+                        "code": "search",
+                        "name": "查询",
+                        "sequence": 5,
+                        "type": "button",
+                        "status": "enabled"
+                    }
+                ],
+                "resources": [
+                    {
+                        "method": "GET",
+                        "path": "/api/v1/agent-tokens"
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/api/v1/agent-tokens/{id}"
+                    }
+                ]
             }
         ]
     }

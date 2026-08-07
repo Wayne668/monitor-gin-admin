@@ -91,6 +91,9 @@ const (
 	// 【代理激励】激励政策信息查询 https://open.oceanengine.com/labels/12/docs/1869409753087043
 	APIIncentivePolicyBaseInfoGet = "https://api.oceanengine.com/open_api/2/file/incentive_policy_base_info/get/"
 
+	// 批量更新营销素材启用状态 https://open.oceanengine.com/labels/7/docs/1755355780973568
+	APIPromotionMaterialStatusUpdate = "https://api.oceanengine.com/open_api/v3.0/material/status/update/"
+
 	// 删除营销下素材 https://open.oceanengine.com/labels/7/docs/1797183832412380
 	APIPromotionMaterialDelete = "https://api.oceanengine.com/open_api/v3.0/promotion/material/delete/"
 

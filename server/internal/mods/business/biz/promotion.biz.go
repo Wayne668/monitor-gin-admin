@@ -27,7 +27,13 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 	}
 
 	// DB无数据，调用Oceanengine API拉取
-	apiItems, err := a.fetchFromOceanengine(ctx, accountIDs)
+	accessToken := "" // TODO: 从配置/上下文中获取 accessToken
+	if accessToken == "" {
+		// 未配置 accessToken，直接返回空列表，避免调用API失败导致500
+		return nil, nil
+	}
+
+	apiItems, err := a.fetchFromOceanengine(ctx, accountIDs, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("从Oceanengine拉取广告数据失败: %w", err)
 	}
@@ -44,9 +50,7 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 }
 
 // fetchFromOceanengine 调用Oceanengine API拉取广告数据
-func (a *Promotion) fetchFromOceanengine(ctx context.Context, accountIDs []int64) ([]schema.Promotion, error) {
-	accessToken := "" // TODO: 从配置/上下文中获取 accessToken
-
+func (a *Promotion) fetchFromOceanengine(ctx context.Context, accountIDs []int64, accessToken string) ([]schema.Promotion, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}

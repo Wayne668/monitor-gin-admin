@@ -1,4 +1,4 @@
-import { ToolOutlined, RobotOutlined, FieldNumberOutlined } from '@ant-design/icons-vue'
+import { ToolOutlined, RobotOutlined, FieldNumberOutlined, KeyOutlined } from '@ant-design/icons-vue'
 
 export default [
     {
@@ -95,6 +95,18 @@ export default [
                 component: 'exception/404.vue',
                 meta: {
                     title: '素材预警',
+                    isMenu: true,
+                    keepAlive: true,
+                    permission: '*',
+                },
+            },
+            {
+                path: 'agentToken',
+                name: 'agentToken',
+                component: 'aiHost/TokenList.vue',
+                meta: {
+                    icon: KeyOutlined,
+                    title: '账户token',
                     isMenu: true,
                     keepAlive: true,
                     permission: '*',

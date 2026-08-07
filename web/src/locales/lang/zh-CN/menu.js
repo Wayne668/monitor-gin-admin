@@ -40,4 +40,5 @@ export default {
     hostFieldForm: '新增字段',
     hostFieldEdit: '编辑字段',
     materialWarn: '素材预警',
+    agentToken: '账户token',
 }

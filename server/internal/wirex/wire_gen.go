@@ -150,11 +150,30 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiAccountInfo := &api2.AccountInfo{
 		AccountInfoBIZ: bizAccountInfo,
 	}
+	agentToken := &dal2.AgentToken{
+		DB: db,
+	}
+	bizAgentToken := &biz2.AgentToken{
+		AgentTokenDAL: agentToken,
+	}
+	apiAgentToken := &api2.AgentToken{
+		AgentTokenBIZ: bizAgentToken,
+	}
+	bizCrontab := &biz2.Crontab{
+		AccountInfo: accountInfo,
+		Oceanengine: &biz2.Oceanengine{},
+		AgentToken:  agentToken,
+	}
+	apiCrontab := &api2.Crontab{
+		CrontabBIZ: bizCrontab,
+	}
 	businessBusiness := &business.Business{
 		DB:             db,
 		HostRuleAPI:    apiHostRule,
 		HostFieldAPI:   apiHostField,
 		AccountInfoAPI: apiAccountInfo,
+		AgentTokenAPI:  apiAgentToken,
+		CrontabAPI:     apiCrontab,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

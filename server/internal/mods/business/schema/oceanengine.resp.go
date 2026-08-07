@@ -119,3 +119,14 @@ type VideoListPageInfo struct {
 	TotalPage   int `json:"total_page"`
 	TotalNumber int `json:"total_number"`
 }
+
+// RefreshTokenResponse 刷新token响应结构
+type RefreshTokenResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpireTime   int    `json:"expire_time"`
+	} `json:"data"`
+}

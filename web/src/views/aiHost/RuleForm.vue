@@ -41,13 +41,46 @@
             </a-form-item>
 
             <a-form-item
+                v-if="form.target === 'promotion' || form.target === 'creative'"
+                label="范围类型"
+                name="scopeType">
+                <a-radio-group
+                    v-model:value="form.scopeType"
+                    button-style="solid">
+                    <a-radio-button
+                        v-for="opt in scopeTypeOptions"
+                        :key="opt.value"
+                        :value="opt.value">
+                        {{ opt.label }}
+                    </a-radio-button>
+                </a-radio-group>
+            </a-form-item>
+
+            <a-form-item
                 label="选择账户"
                 name="selectedAccountIds">
                 <AccountTransfer
                     v-model="form.selectedAccountIds"
                     :options="accountOptions"
                     :target="form.target"
+                    :scope-type="form.scopeType"
                     @targets-loaded="handleTargetsLoaded" />
+                <a-alert
+                    v-if="showTargetTransfer && targetOptions.length === 0"
+                    type="info"
+                    show-icon
+                    message="请先在上方选择账户并点击「确定」加载目标数据"
+                    style="margin-top: 8px" />
+            </a-form-item>
+
+            <a-form-item
+                v-if="showTargetTransfer && targetOptions.length > 0"
+                :label="isExcludeScope ? '排除目标' : '选择目标'"
+                name="selectedTargetIds">
+                <TargetTransfer
+                    v-model="form.selectedTargetIds"
+                    :options="targetOptions"
+                    :target="form.target" />
             </a-form-item>
 
             <!-- 条件和操作 -->
@@ -66,7 +99,7 @@
                             max-width: 25%;
                             border: 1px solid #d9d9d9;
                             border-radius: 6px;
-                            padding: 16px;
+                            padding: 10px;
                         ">
                         <div style="font-weight: bold; margin-bottom: 12px">就执行以下操作</div>
                         <a-select
@@ -107,12 +140,29 @@
                 label="通知方式"
                 name="notifyMethods">
                 <a-checkbox-group v-model:value="form.notifyMethods">
-                    <a-checkbox value="sms">短信通知</a-checkbox>
-                    <a-checkbox value="email">邮件通知</a-checkbox>
-                    <a-checkbox value="feishu">飞书群机器人</a-checkbox>
+                    <a-checkbox value="sms" disabled>短信通知</a-checkbox>
                     <a-checkbox value="dingtalk">钉钉群机器人</a-checkbox>
-                    <a-checkbox value="wecom">企业微信群机器人</a-checkbox>
                 </a-checkbox-group>
+            </a-form-item>
+
+            <a-form-item
+                v-if="form.notifyMethods.includes('sms')"
+                label="手机号"
+                name="notifyPhones">
+                <a-input
+                    v-model:value="form.notifyPhones"
+                    placeholder="多个手机号用英文逗号分隔"
+                    style="max-width: 400px" />
+            </a-form-item>
+
+            <a-form-item
+                v-if="form.notifyMethods.includes('dingtalk')"
+                label="Webhook URL"
+                name="dingtalkWebhookUrl">
+                <a-input
+                    v-model:value="form.dingtalkWebhookUrl"
+                    placeholder="请输入钉钉群机器人 Webhook URL"
+                    style="max-width: 400px" />
             </a-form-item>
 
             <a-form-item
@@ -155,6 +205,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import ConditionBuilder from './components/ConditionBuilder.vue'
 import AccountTransfer from './components/AccountTransfer.vue'
+import TargetTransfer from './components/TargetTransfer.vue'
 import { getEnabledAccountList } from '@/apis/modules/accountInfo'
 
 const route = useRoute()
@@ -164,16 +215,15 @@ const formRef = ref()
 const saving = ref(false)
 
 const promotionActionOptions = [
-    { label: '暂停广告 + 发送通知', value: 'pause' },
-    { label: '启动广告 + 发送通知', value: 'restart' },
+    { label: '暂停广告+发送通知', value: 'pause' },
+    { label: '启动广告+发送通知', value: 'restart' },
     { label: '发送通知', value: 'notify' },
-    { label: '一键起量', value: 'boost' },
 ]
 
 const creativeActionOptions = [
-    { label: '暂停素材 + 发送通知', value: 'pause' },
-    { label: '启动素材 + 发送通知', value: 'restart' },
-    { label: '删除素材 + 发送通知', value: 'delete' },
+    { label: '暂停素材+发送通知', value: 'pause' },
+    { label: '启动素材+发送通知', value: 'restart' },
+    { label: '删除素材+发送通知', value: 'delete' },
     { label: '发送通知', value: 'notify' },
 ]
 
@@ -184,19 +234,51 @@ const actionOptions = computed(() => {
     return []
 })
 
-// 切换 target 时清空已选 action，避免选项不匹配
-watch(
-    () => form.target,
-    () => {
-        form.action = undefined
+// 范围类型选项：根据 target 切换文案
+const scopeTypeOptions = computed(() => {
+    if (form.target === 'promotion') {
+        return [
+            { label: '指定账户的广告', value: 'account_promotion' },
+            { label: '指定广告', value: 'promotion' },
+            { label: '排除指定账户的广告', value: 'exclude_account_promotion' },
+            { label: '排除指定广告', value: 'exclude_promotion' },
+        ]
     }
-)
+    if (form.target === 'creative') {
+        return [
+            { label: '指定账户的创意', value: 'account_creative' },
+            { label: '指定创意', value: 'creative' },
+            { label: '排除指定账户的创意', value: 'exclude_account_creative' },
+            { label: '排除指定创意', value: 'exclude_creative' },
+        ]
+    }
+    return []
+})
+
+// 是否是排除模式
+const isExcludeScope = computed(() => {
+    return ['exclude_account_promotion', 'exclude_promotion', 'exclude_account_creative', 'exclude_creative'].includes(
+        form.scopeType
+    )
+})
+
+// 是否需要展示目标穿梭框（广告/创意选择）
+// 仅"指定广告/创意"和"排除指定广告/创意"需要选择具体目标
+// "指定账户的广告/创意"和"排除指定账户的广告/创意"针对账户下全部目标，无需穿梭框
+const needTargetSelect = computed(() => {
+    return ['promotion', 'creative', 'exclude_promotion', 'exclude_creative'].includes(form.scopeType)
+})
+
+const showTargetTransfer = computed(() => {
+    return (form.target === 'promotion' || form.target === 'creative') && needTargetSelect.value
+})
 
 const accountOptions = ref([])
 
 const loadAccounts = async () => {
     try {
-        const res = await getEnabledAccountList()
+        // 只取下拉所需字段，减少传输量；limit 使用后端默认（最新 100 条）
+        const res = await getEnabledAccountList({ fields: 'advertiser_id,advertiser_name' })
         accountOptions.value = (res.data || []).map((item) => ({
             id: String(item.advertiserId),
             name: item.advertiserName,
@@ -211,8 +293,10 @@ onMounted(() => {
 })
 
 const form = reactive({
-    target: 'ad',
+    target: 'account',
+    scopeType: undefined,
     selectedAccountIds: [],
+    selectedTargetIds: [],
     targetPromotion: [],
     targetMaterial: [],
     conditionConfig: {
@@ -222,9 +306,18 @@ const form = reactive({
     action: undefined,
     checkFreq: '30',
     dateRange: undefined,
-    notifyMethods: ['sms'],
+    notifyMethods: ['dingtalk'],
+    notifyPhones: '',
+    dingtalkWebhookUrl: '',
     name: '',
     agreeTerms: false,
+})
+
+// 目标穿梭框数据源：根据 target 选择对应的列表
+const targetOptions = computed(() => {
+    if (form.target === 'promotion') return form.targetPromotion
+    if (form.target === 'creative') return form.targetMaterial
+    return []
 })
 
 const handleTargetsLoaded = (items) => {
@@ -235,8 +328,36 @@ const handleTargetsLoaded = (items) => {
     }
 }
 
+// 切换 target 时清空相关字段，避免数据混乱
+watch(
+    () => form.target,
+    () => {
+        form.action = undefined
+        form.scopeType = undefined
+        form.selectedTargetIds = []
+        form.targetPromotion = []
+        form.targetMaterial = []
+    }
+)
+
+// 切换 scopeType 时清空已选目标和已加载的目标数据，避免与范围不匹配
+watch(
+    () => form.scopeType,
+    (newVal, oldVal) => {
+        // 仅在进出"需要选目标"的模式时清空已加载的目标数据
+        const wasNeedSelect = ['promotion', 'creative', 'exclude_promotion', 'exclude_creative'].includes(oldVal)
+        const nowNeedSelect = ['promotion', 'creative', 'exclude_promotion', 'exclude_creative'].includes(newVal)
+        if (wasNeedSelect !== nowNeedSelect) {
+            form.targetPromotion = []
+            form.targetMaterial = []
+        }
+        form.selectedTargetIds = []
+    }
+)
+
 const rules = reactive({
     target: [{ required: true, message: '请选择托管目标', trigger: 'change' }],
+    scopeType: [{ required: true, message: '请选择范围类型', trigger: 'change' }],
     selectedAccountIds: [{ type: 'array', required: true, min: 1, message: '请至少选择一个账户', trigger: 'change' }],
     action: [{ required: true, message: '请选择执行操作', trigger: 'change' }],
     checkFreq: [{ required: true, message: '请选择检查频率', trigger: 'change' }],

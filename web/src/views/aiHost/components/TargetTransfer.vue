@@ -1,11 +1,11 @@
 <template>
-    <div class="account-transfer">
+    <div class="target-transfer">
         <div class="panel left-panel">
             <div class="panel-header">
                 <a-form-item-rest>
                     <a-input
                         v-model:value="keyword"
-                        placeholder="搜索账户名称/ID"
+                        placeholder="搜索名称/ID"
                         size="small"
                         allow-clear>
                         <template #prefix><SearchOutlined /></template>
@@ -29,19 +29,22 @@
                     <div
                         v-for="item in filteredList"
                         :key="item.id"
-                        class="account-item">
-                        <a-checkbox :value="item.id">{{ item.name }} （{{ item.id }}）</a-checkbox>
+                        class="target-item">
+                        <a-checkbox :value="item.id">
+                            {{ item.id }} - {{ item.name }}
+                            <span class="account-tag">[{{ item.advertiserId }}]</span>
+                        </a-checkbox>
                     </div>
                 </a-checkbox-group>
                 <a-empty
                     v-if="filteredList.length === 0"
-                    description="无匹配账户" />
+                    :description="emptyText" />
             </div>
         </div>
 
         <div class="panel right-panel">
             <div class="panel-header">
-                <span>已选 {{ selectedItems.length }} 个账户</span>
+                <span>已选 {{ selectedItems.length }} 个{{ targetLabel }}</span>
                 <a-button
                     type="link"
                     size="small"
@@ -63,18 +66,6 @@
                     v-if="selectedItems.length === 0"
                     description="暂未选择" />
             </div>
-            <div
-                v-if="showConfirmBtn"
-                class="panel-footer">
-                <a-button
-                    type="primary"
-                    size="small"
-                    :loading="loading"
-                    :disabled="selectedItems.length === 0"
-                    @click="handleConfirm">
-                    确定
-                </a-button>
-            </div>
         </div>
     </div>
 </template>
@@ -82,27 +73,32 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
-import { getTargetByAccount } from '@/apis/modules/hostRule'
 
 const props = defineProps({
+    // 目标列表（由父组件从接口获取后传入）
     options: { type: Array, default: () => [] },
+    // 选中的目标ID列表（v-model）
     modelValue: { type: Array, default: () => [] },
+    // 目标类型，用于文案展示
     target: { type: String, default: '' },
-    scopeType: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:modelValue', 'targets-loaded'])
+const emit = defineEmits(['update:modelValue'])
 
 const keyword = ref('')
-const checkedKeys = ref([...props.modelValue])
-const loading = ref(false)
 
-// 仅"指定广告/创意"和"排除指定广告/创意"需要选具体目标，才显示「确定」按钮加载目标数据
-const showConfirmBtn = computed(() => {
-    if (props.target !== 'creative' && props.target !== 'promotion') return false
-    return ['promotion', 'creative', 'exclude_promotion', 'exclude_creative'].includes(props.scopeType)
+const targetLabel = computed(() => {
+    if (props.target === 'promotion') return '广告'
+    if (props.target === 'creative') return '创意'
+    return '目标'
 })
+
+const emptyText = computed(() => {
+    if (!props.options || props.options.length === 0) return '请先选择账户并加载数据'
+    return '无匹配数据'
+})
+
+const checkedKeys = ref([...props.modelValue])
 
 const filteredList = computed(() => {
     const kw = keyword.value.trim().toLowerCase()
@@ -126,7 +122,6 @@ const handleSelectAll = (e) => {
     } else {
         checkedKeys.value = checkedKeys.value.filter((k) => !ids.includes(k))
     }
-    // 同步 emit，确保父组件 v-model 立即更新，避免表单校验拿到旧值
     emit('update:modelValue', [...checkedKeys.value])
 }
 
@@ -144,26 +139,6 @@ const onCheckedChange = (val) => {
     emit('update:modelValue', [...val])
 }
 
-const handleConfirm = async () => {
-    if (checkedKeys.value.length === 0) {
-        return
-    }
-    loading.value = true
-    try {
-        const res = await getTargetByAccount({
-            target: props.target,
-            accountIds: [...checkedKeys.value],
-        })
-        const items = res?.data || []
-        message.success(`已加载 ${items.length} 条目标数据`)
-        emit('targets-loaded', items)
-    } catch (e) {
-        // 错误信息由请求拦截器统一处理
-    } finally {
-        loading.value = false
-    }
-}
-
 // 父组件 -> 子组件同步（如编辑回填）
 watch(
     () => props.modelValue,
@@ -171,6 +146,20 @@ watch(
         // 相等则跳过，避免与 emit 形成递归更新
         if (arraysEqual(checkedKeys.value, val)) return
         checkedKeys.value = [...val]
+    },
+    { deep: true }
+)
+
+// 外部 options 变化时，清理已不在列表中的选中项
+watch(
+    () => props.options,
+    (val) => {
+        const validIds = new Set(val.map((o) => o.id))
+        const filtered = checkedKeys.value.filter((k) => validIds.has(k))
+        if (filtered.length !== checkedKeys.value.length) {
+            checkedKeys.value = filtered
+            emit('update:modelValue', [...filtered])
+        }
     },
     { deep: true }
 )
@@ -187,7 +176,7 @@ function arraysEqual(a, b) {
 </script>
 
 <style scoped>
-.account-transfer {
+.target-transfer {
     display: flex;
     gap: 16px;
 }
@@ -224,13 +213,12 @@ function arraysEqual(a, b) {
     max-height: 280px;
     min-height: 200px;
 }
-.panel-footer {
-    padding: 8px 12px;
-    border-top: 1px solid #f0f0f0;
-    background: #fafafa;
-    text-align: right;
-}
-.account-item {
+.target-item {
     padding: 4px 0;
+}
+.account-tag {
+    color: #999;
+    font-size: 12px;
+    margin-left: 4px;
 }
 </style>
