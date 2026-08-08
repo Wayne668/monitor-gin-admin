@@ -60,7 +60,6 @@ type UnAudititedMaterialItem struct {
 
 // UnAudititedMaterialReq 删除未审核素材请求
 type UnAudititedMaterialReq struct {
-	AccessToken string                    `json:"accessToken"`
-	AccountIDs  []int64                   `json:"accountIds"`
-	Materials   []UnAudititedMaterialItem `json:"materials"`
+	AccountID  int64                      `json:"accountId"`
+	Materials  []UnAudititedMaterialItem  `json:"materials"`
 }

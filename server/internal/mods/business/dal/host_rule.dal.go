@@ -64,3 +64,15 @@ func (a *HostRule) UpdateStatus(ctx context.Context, id uint, status int8) error
 	result := GetHostRuleDB(ctx, a.DB).Where("id=?", id).Update("status", status)
 	return errors.WithStack(result.Error)
 }
+
+// Create 新增托管规则
+func (a *HostRule) Create(ctx context.Context, item *schema.HostRule) error {
+	result := GetHostRuleDB(ctx, a.DB).Create(item)
+	return errors.WithStack(result.Error)
+}
+
+// Update 更新托管规则
+func (a *HostRule) Update(ctx context.Context, item *schema.HostRule) error {
+	result := GetHostRuleDB(ctx, a.DB).Where("id=?", item.ID).Select("*").Updates(item)
+	return errors.WithStack(result.Error)
+}

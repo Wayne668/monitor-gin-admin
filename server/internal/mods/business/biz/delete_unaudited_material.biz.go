@@ -42,7 +42,7 @@ func (a *DeleteUnauditedMaterial) Get(ctx context.Context, id uint) (*schema.Del
 }
 
 // FetchUnauditedMaterial 拉取未审核素材
-func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, accountIDs []int64, accessToken string) ([]*schema.DeleteUnauditedMaterial, error) {
+func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, accountID int64, accountIDs []int64) ([]*schema.DeleteUnauditedMaterial, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}
@@ -50,7 +50,7 @@ func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, ac
 
 	result := make([]*schema.DeleteUnauditedMaterial, 0)
 	for _, advertiserID := range accountIDs {
-		items, err := a.Oceanengine.GetRefPromotionData(accessToken, advertiserID, filtering, fields)
+		items, err := a.Oceanengine.GetRefPromotionData(ctx, accountID, advertiserID, filtering, fields)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 广告失败: %w", advertiserID, err)
 		}
@@ -83,7 +83,7 @@ func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema
 			IsDeleted:    "pending",
 		}
 
-		_, err := a.Oceanengine.DeleteMaterialUnderPromotion(m.MaterialID, m.PromotionID, m.AdvertiserID, req.AccessToken)
+		_, err := a.Oceanengine.DeleteMaterialUnderPromotion(ctx, req.AccountID, m.MaterialID, m.PromotionID, m.AdvertiserID)
 		if err != nil {
 			record.IsDeleted = "failed"
 			record.ErrorMsg = err.Error()

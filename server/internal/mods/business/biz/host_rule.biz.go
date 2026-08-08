@@ -94,3 +94,31 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 
 	return items, nil
 }
+
+// Save 新增/编辑托管规则
+func (a *HostRule) Save(ctx context.Context, formItem *schema.HostRuleForm) (*schema.HostRule, error) {
+	if formItem.ID > 0 {
+		// 编辑
+		item, err := a.HostRuleDAL.Get(ctx, formItem.ID)
+		if err != nil {
+			return nil, err
+		} else if item == nil {
+			return nil, errors.NotFound("", "托管规则不存在")
+		}
+		formItem.FillTo(item)
+		if err := a.HostRuleDAL.Update(ctx, item); err != nil {
+			return nil, err
+		}
+		return item, nil
+	}
+
+	// 新增
+	item := &schema.HostRule{
+		Status: schema.HostRuleStatusEnabled,
+	}
+	formItem.FillTo(item)
+	if err := a.HostRuleDAL.Create(ctx, item); err != nil {
+		return nil, err
+	}
+	return item, nil
+}

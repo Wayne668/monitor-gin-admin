@@ -27,9 +27,9 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 	endDate := time.Now().Format("2006-01-02")
 	var allNewItems []schema.MaterialVideo
 
-	accessToken := "" // TODO: 从配置/上下文中获取 accessToken
-	if accessToken == "" {
-		// 未配置 accessToken，直接查询DB返回，避免调用API失败导致500
+	accountID := int64(0) // TODO: 从配置/上下文中获取 accountID
+	if accountID == 0 {
+		// 未配置 accountID，直接查询DB返回，避免调用API失败导致500
 		return a.MaterialVideoDAL.FindByAccountIDs(ctx, accountIDs, fields)
 	}
 
@@ -43,7 +43,7 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 			apiEndDate = endDate
 		}
 		// 无记录：startDate="" endDate="" 全量拉取
-		items, err := a.Oceanengine.GetVideoMaterial(accessToken, advertiserID, startDate, apiEndDate)
+		items, err := a.Oceanengine.GetVideoMaterial(ctx, accountID, advertiserID, startDate, apiEndDate)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 视频素材失败: %w", advertiserID, err)
 		}

@@ -27,13 +27,13 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 	}
 
 	// DB无数据，调用Oceanengine API拉取
-	accessToken := "" // TODO: 从配置/上下文中获取 accessToken
-	if accessToken == "" {
-		// 未配置 accessToken，直接返回空列表，避免调用API失败导致500
+	accountID := int64(0) // TODO: 从配置/上下文中获取 accountID
+	if accountID == 0 {
+		// 未配置 accountID，直接返回空列表，避免调用API失败导致500
 		return nil, nil
 	}
 
-	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, accessToken)
+	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("从Oceanengine拉取广告数据失败: %w", err)
 	}
@@ -50,7 +50,7 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 }
 
 // FetchFromOceanengine 调用Oceanengine API拉取广告数据
-func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, accessToken string) ([]schema.Promotion, error) {
+func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, accountID int64) ([]schema.Promotion, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}
@@ -58,7 +58,7 @@ func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64
 
 	result := make([]schema.Promotion, 0)
 	for _, advertiserID := range accountIDs {
-		items, err := a.Oceanengine.GetRefPromotionData(accessToken, advertiserID, filtering, fields)
+		items, err := a.Oceanengine.GetRefPromotionData(ctx, accountID, advertiserID, filtering, fields)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 广告失败: %w", advertiserID, err)
 		}

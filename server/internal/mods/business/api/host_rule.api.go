@@ -96,3 +96,22 @@ func (a *HostRule) GetTargetsByAccount(c *gin.Context) {
 	}
 	util.ResSuccess(c, items)
 }
+
+func (a *HostRule) SaveHostRule(c *gin.Context) {
+	ctx := c.Request.Context()
+	form := new(schema.HostRuleForm)
+	if err := util.ParseJSON(c, form); err != nil {
+		util.ResError(c, err)
+		return
+	} else if err := form.Validate(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+
+	item, err := a.HostRuleBIZ.Save(ctx, form)
+	if err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, item)
+}

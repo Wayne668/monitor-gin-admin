@@ -33,6 +33,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 	{
 		hostRule.GET("", a.HostRuleAPI.Query)
 		hostRule.GET(":id", a.HostRuleAPI.Get)
+		hostRule.POST("", a.HostRuleAPI.SaveHostRule)
 		hostRule.PATCH(":id/status", a.HostRuleAPI.UpdateStatus)
 	}
 

@@ -345,7 +345,7 @@
                 "sequence": 80,
                 "type": "page",
                 "path": "/tools/materialWarn",
-                "status": "enabled"
+                "status": "disabled"
             },
             {
                 "code": "materialDel",

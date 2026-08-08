@@ -123,56 +123,83 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		LoggerAPI: apiLogger,
 		Casbinx:   casbinx,
 	}
+	// === Business DAL instances ===
 	hostRule := &dal2.HostRule{
 		DB: db,
 	}
-	bizHostRule := &biz2.HostRule{
-		HostRuleDAL: hostRule,
-	}
-	apiHostRule := &api2.HostRule{
-		HostRuleBIZ: bizHostRule,
-	}
-	hostField := &dal2.HostField{
+	promotion := &dal2.Promotion{
 		DB: db,
 	}
-	bizHostField := &biz2.HostField{
-		HostFieldDAL: hostField,
-	}
-	apiHostField := &api2.HostField{
-		HostFieldBIZ: bizHostField,
-	}
-	accountInfo := &dal2.AccountInfo{
+	materialVideo := &dal2.MaterialVideo{
 		DB: db,
-	}
-	bizAccountInfo := &biz2.AccountInfo{
-		AccountInfoDAL: accountInfo,
-	}
-	apiAccountInfo := &api2.AccountInfo{
-		AccountInfoBIZ: bizAccountInfo,
-	}
-	agentToken := &dal2.AgentToken{
-		DB: db,
-	}
-	bizAgentToken := &biz2.AgentToken{
-		AgentTokenDAL: agentToken,
-	}
-	apiAgentToken := &api2.AgentToken{
-		AgentTokenBIZ: bizAgentToken,
-	}
-	bizCrontab := &biz2.Crontab{
-		AccountInfo: accountInfo,
-		Oceanengine: &biz2.Oceanengine{},
-		AgentToken:  agentToken,
-	}
-	apiCrontab := &api2.Crontab{
-		CrontabBIZ: bizCrontab,
 	}
 	deleteUnauditedMaterial := &dal2.DeleteUnauditedMaterial{
 		DB: db,
 	}
+	agentToken := &dal2.AgentToken{
+		DB: db,
+	}
+	accountInfo := &dal2.AccountInfo{
+		DB: db,
+	}
+	hostField := &dal2.HostField{
+		DB: db,
+	}
+
+	// === Shared Oceanengine instance with AgentTokenDAL ===
+	bizOceanengine := &biz2.Oceanengine{
+		AgentTokenDAL: agentToken,
+	}
+
+	// === Business BIZ instances ===
+	bizPromotion := &biz2.Promotion{
+		PromotionDAL: promotion,
+		Oceanengine:  bizOceanengine,
+	}
+	bizMaterialVideo := &biz2.MaterialVideo{
+		MaterialVideoDAL: materialVideo,
+		Oceanengine:      bizOceanengine,
+	}
+	bizHostRule := &biz2.HostRule{
+		HostRuleDAL:      hostRule,
+		PromotionBIZ:     bizPromotion,
+		MaterialVideoBIZ: bizMaterialVideo,
+	}
+	bizHostField := &biz2.HostField{
+		HostFieldDAL: hostField,
+	}
+	bizAccountInfo := &biz2.AccountInfo{
+		AccountInfoDAL: accountInfo,
+	}
+	bizAgentToken := &biz2.AgentToken{
+		AgentTokenDAL: agentToken,
+	}
+	bizCrontab := &biz2.Crontab{
+		AccountInfo: accountInfo,
+		Oceanengine: bizOceanengine,
+		AgentToken:  agentToken,
+	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,
-		Oceanengine:                &biz2.Oceanengine{},
+		Oceanengine:                bizOceanengine,
+	}
+
+	// === API instances ===
+	apiHostRule := &api2.HostRule{
+		HostRuleBIZ:    bizHostRule,
+		OceanengineBIZ: bizOceanengine,
+	}
+	apiHostField := &api2.HostField{
+		HostFieldBIZ: bizHostField,
+	}
+	apiAccountInfo := &api2.AccountInfo{
+		AccountInfoBIZ: bizAccountInfo,
+	}
+	apiAgentToken := &api2.AgentToken{
+		AgentTokenBIZ: bizAgentToken,
+	}
+	apiCrontab := &api2.Crontab{
+		CrontabBIZ: bizCrontab,
 	}
 	apiDeleteUnauditedMaterial := &api2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialBIZ: bizDeleteUnauditedMaterial,

@@ -14,9 +14,9 @@ type Crontab struct {
 	AgentToken  *dal.AgentToken
 }
 
-func (s *Crontab) SyncAccounts(StartDate, EndDate string) error {
-	accessToken, advertiserID := "", ""
-	if accessToken == "" {
+func (s *Crontab) SyncAccounts(ctx context.Context, accountID int64, StartDate, EndDate string) error {
+	advertiserID := ""
+	if advertiserID == "" {
 		return fmt.Errorf("remarks=%s 未找到已授权的Token", "")
 	}
 
@@ -25,7 +25,7 @@ func (s *Crontab) SyncAccounts(StartDate, EndDate string) error {
 		CreateEndTime:   EndDate + " 23:59:59",
 	}
 
-	advertiserIDs, err := s.Oceanengine.GetAdvertiserIDs(accessToken, advertiserID, filtering)
+	advertiserIDs, err := s.Oceanengine.GetAdvertiserIDs(ctx, accountID, advertiserID, filtering)
 	if err != nil {
 		return fmt.Errorf("获取账户ID列表失败: %w", err)
 	}
@@ -56,7 +56,7 @@ func (s *Crontab) SyncAccounts(StartDate, EndDate string) error {
 		}
 		chunk := newAdvertiserIDs[i:end]
 
-		details, err := s.Oceanengine.GetAdvertiserInfo(accessToken, chunk)
+		details, err := s.Oceanengine.GetAdvertiserInfo(ctx, accountID, chunk)
 		if err != nil {
 			return fmt.Errorf("【SyncAccounts】获取账户详情失败: %w", err)
 		}

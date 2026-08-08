@@ -20,6 +20,20 @@
             :label-col="{ span: 4 }"
             :wrapper-col="{ span: 18 }"
             style="background: #fff; padding: 24px; border-radius: 8px">
+            <!-- 授权账户 -->
+            <a-divider orientation="left">授权账户</a-divider>
+
+            <a-form-item
+                label="选择代理商账户"
+                name="selectedAccountId">
+                <a-select
+                    v-model:value="form.selectedAccountId"
+                    placeholder="请选择代理商账户（用于获取 access_token）"
+                    style="max-width: 400px"
+                    :options="agentTokenOptions"
+                    @change="handleAgentTokenChange" />
+            </a-form-item>
+
             <!-- 选择托管对象 -->
             <a-divider orientation="left">选择托管对象</a-divider>
 
@@ -207,6 +221,8 @@ import ConditionBuilder from './components/ConditionBuilder.vue'
 import AccountTransfer from './components/AccountTransfer.vue'
 import TargetTransfer from './components/TargetTransfer.vue'
 import { getEnabledAccountList } from '@/apis/modules/accountInfo'
+import { getAgentTokenList } from '@/apis/modules/agentToken'
+import { saveHostRule } from '@/apis/modules/hostRule'
 
 const route = useRoute()
 const router = useRouter()
@@ -274,6 +290,19 @@ const showTargetTransfer = computed(() => {
 })
 
 const accountOptions = ref([])
+const agentTokenOptions = ref([])
+
+const loadAgentTokens = async () => {
+    try {
+        const res = await getAgentTokenList({ pageSize: 999 })
+        agentTokenOptions.value = (res.data || []).map((item) => ({
+            label: `${item.accountName} (${item.accountId})`,
+            value: item.accountId,
+        }))
+    } catch (e) {
+        message.error('加载代理商账户失败')
+    }
+}
 
 const loadAccounts = async () => {
     try {
@@ -290,11 +319,13 @@ const loadAccounts = async () => {
 
 onMounted(() => {
     loadAccounts()
+    loadAgentTokens()
 })
 
 const form = reactive({
     target: 'account',
     scopeType: undefined,
+    selectedAccountId: undefined,
     selectedAccountIds: [],
     selectedTargetIds: [],
     targetPromotion: [],
@@ -358,6 +389,7 @@ watch(
 const rules = reactive({
     target: [{ required: true, message: '请选择托管目标', trigger: 'change' }],
     scopeType: [{ required: true, message: '请选择范围类型', trigger: 'change' }],
+    selectedAccountId: [{ required: true, message: '请选择代理商账户', trigger: 'change' }],
     selectedAccountIds: [{ type: 'array', required: true, min: 1, message: '请至少选择一个账户', trigger: 'change' }],
     action: [{ required: true, message: '请选择执行操作', trigger: 'change' }],
     checkFreq: [{ required: true, message: '请选择检查频率', trigger: 'change' }],
@@ -387,11 +419,31 @@ const handleSave = async () => {
 
     saving.value = true
     try {
-        console.log('提交数据:', JSON.parse(JSON.stringify(form)))
+        const payload = {
+            ruleName: form.name,
+            target: form.target,
+            scopeType: form.scopeType,
+            selectedAccountId: form.selectedAccountId,
+            selectedAccountIds: form.selectedAccountIds,
+            selectedTargetIds: form.selectedTargetIds,
+            conditionConfig: form.conditionConfig,
+            action: form.action,
+            checkFreq: parseInt(form.checkFreq === 'custom' ? '30' : form.checkFreq, 10),
+            dateRange: form.dateRange || [],
+            notifyMethods: form.notifyMethods,
+            dingtalkWebhookUrl: form.dingtalkWebhookUrl,
+        }
+        await saveHostRule(payload)
         message.success(isEdit.value ? '规则已更新' : '规则已创建')
         setTimeout(() => router.push({ name: 'aiHost' }), 800)
+    } catch (e) {
+        message.error(e?.message || '保存失败')
     } finally {
         saving.value = false
     }
+}
+
+const handleAgentTokenChange = () => {
+    // 代理商账户变更时，可重置相关状态
 }
 </script>

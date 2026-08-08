@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"encoding/json"
+	"strconv"
 	"time"
 
 	"monitor-gin-admin/pkg/util"
@@ -90,4 +92,62 @@ type TargetItem struct {
 	ID           uint   `json:"id" gorm:"primarykey"`
 	Name         string `json:"name"`
 	AdvertiserID string `json:"advertiserId"`
+}
+
+// HostRuleForm 新增/编辑托管规则表单
+type HostRuleForm struct {
+	ID                 uint        `json:"id"`
+	RuleName           string      `json:"ruleName" binding:"required,max=50"`
+	Target             string      `json:"target" binding:"required,oneof=account project promotion creative"`
+	ScopeType          string      `json:"scopeType"`
+	SelectedAccountID  string      `json:"selectedAccountId"` // nb_agent_token.account_id
+	SelectedAccountIds []string    `json:"selectedAccountIds"`
+	SelectedTargetIds  []string    `json:"selectedTargetIds"`
+	ConditionConfig    interface{} `json:"conditionConfig"`
+	Action             string      `json:"action"`
+	CheckFreq          int         `json:"checkFreq"`
+	DateRange          []string    `json:"dateRange"`
+	NotifyMethods      []string    `json:"notifyMethods"`
+	DingtalkWebhookUrl string      `json:"dingtalkWebhookUrl"`
+}
+
+func (a *HostRuleForm) Validate() error {
+	return nil
+}
+
+func (a *HostRuleForm) FillTo(item *HostRule) {
+	item.RuleName = a.RuleName
+	item.Target = a.Target
+	item.AgentID, _ = strconv.ParseInt(a.SelectedAccountID, 10, 64)
+	// 使用条件与操作 JSON 序列化
+	condJSON, _ := json.Marshal(a.ConditionConfig)
+	item.TriggerCondition = string(condJSON)
+	item.ExecuteAction = a.Action
+	item.TriggerFrequency = a.CheckFreq
+	// 生效日期
+	if len(a.DateRange) == 2 {
+		start, _ := time.Parse("2006-01-02", a.DateRange[0])
+		end, _ := time.Parse("2006-01-02", a.DateRange[1])
+		item.TriggerStartDate = start
+		item.TriggerEndDate = end
+	}
+	// 账户列表
+	accountsJSON, _ := json.Marshal(a.SelectedAccountIds)
+	item.TargetAccounts = string(accountsJSON)
+	// 目标列表
+	targetJSON, _ := json.Marshal(a.SelectedTargetIds)
+	item.TargetPromotion = string(targetJSON)
+	item.TargetProjects = string(targetJSON)
+	item.TargetMaterial = string(targetJSON)
+	// 通知方式映射到 NotifyFrequency
+	notifyVal := 0
+	for _, m := range a.NotifyMethods {
+		switch m {
+		case "sms":
+			notifyVal |= 1
+		case "dingtalk":
+			notifyVal |= 2
+		}
+	}
+	item.NotifyFrequency = notifyVal
 }
