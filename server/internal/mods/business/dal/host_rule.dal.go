@@ -76,3 +76,14 @@ func (a *HostRule) Update(ctx context.Context, item *schema.HostRule) error {
 	result := GetHostRuleDB(ctx, a.DB).Where("id=?", item.ID).Select("*").Updates(item)
 	return errors.WithStack(result.Error)
 }
+
+// QueryAllEnabled 查询所有启用状态的托管规则
+func (a *HostRule) QueryAllEnabled(ctx context.Context) ([]*schema.HostRule, error) {
+	var list []*schema.HostRule
+	db := GetHostRuleDB(ctx, a.DB).Where("status = ?", schema.HostRuleStatusEnabled)
+	result := db.Find(&list)
+	if result.Error != nil {
+		return nil, errors.WithStack(result.Error)
+	}
+	return list, nil
+}

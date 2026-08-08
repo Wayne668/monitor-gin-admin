@@ -97,3 +97,33 @@ func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema
 	}
 	return nil
 }
+
+// RetryFailedDelete 重试删除失败的记录（is_deleted=failed 且 retry_times < 3）
+func (a *DeleteUnauditedMaterial) RetryFailedDelete(ctx context.Context, accountID int64) error {
+	records, err := a.DeleteUnauditedMaterialDAL.QueryFailedForRetry(ctx)
+	if err != nil {
+		return fmt.Errorf("查询失败记录失败: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil
+	}
+
+	for _, record := range records {
+		_, err := a.Oceanengine.DeleteMaterialUnderPromotion(ctx, accountID, record.MaterialID, record.PromotionID, record.AdvertiserID)
+		if err != nil {
+			record.IsDeleted = "failed"
+			record.ErrorMsg = err.Error()
+		} else {
+			record.IsDeleted = "deleted"
+			record.ErrorMsg = ""
+		}
+		record.RetryTimes++
+
+		if err := a.DeleteUnauditedMaterialDAL.Update(ctx, record); err != nil {
+			return fmt.Errorf("更新删除记录失败(id=%d): %w", record.ID, err)
+		}
+	}
+
+	return nil
+}

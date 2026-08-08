@@ -18,3 +18,11 @@ func (t *Crontab) RefreshToken(c *gin.Context) {
 	}
 	util.ResSuccess(c, nil)
 }
+
+func (t *Crontab) HandleHostRule(c *gin.Context) {
+	if err := t.CrontabBIZ.HandleHostRule(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, nil)
+}

@@ -19,6 +19,18 @@
                         <a-select-option value="deleted">已删除</a-select-option>
                         <a-select-option value="failed">失败</a-select-option>
                     </a-select>
+                    <a-select
+                        v-model:value="retryAccountId"
+                        placeholder="选择代理商账户"
+                        style="width: 200px"
+                        :options="agentTokenOptions" />
+                    <a-button
+                        type="primary"
+                        :loading="retryLoading"
+                        :disabled="!retryAccountId"
+                        @click="handleRetryFailed">
+                        重试失败删除
+                    </a-button>
                 </a-space>
                 <a-button
                     type="primary"
@@ -63,7 +75,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getDeleteUnauditedMaterialList } from '@/apis/modules/deleteUnauditedMaterial'
+import { getDeleteUnauditedMaterialList, retryFailedDelete } from '@/apis/modules/deleteUnauditedMaterial'
+import { getAgentTokenList } from '@/apis/modules/agentToken'
 
 const router = useRouter()
 
@@ -83,6 +96,22 @@ const columns = [
 const loading = ref(false)
 const tableData = ref([])
 const searchParams = reactive({ materialName: '', isDeleted: undefined })
+
+const retryAccountId = ref(undefined)
+const retryLoading = ref(false)
+const agentTokenOptions = ref([])
+
+const loadAgentTokenOptions = async () => {
+    try {
+        const res = await getAgentTokenList({ current: 1, pageSize: 999 })
+        agentTokenOptions.value = (res.data || []).map((t) => ({
+            label: `${t.accountName} (${t.accountId})`,
+            value: t.accountId,
+        }))
+    } catch {
+        // ignore
+    }
+}
 
 const pagination = reactive({
     current: 1,
@@ -124,6 +153,23 @@ const handleOpenForm = () => {
     router.push('/tools/materialDel/form')
 }
 
+const handleRetryFailed = async () => {
+    if (!retryAccountId.value) {
+        message.warning('请先选择代理商账户')
+        return
+    }
+    retryLoading.value = true
+    try {
+        await retryFailedDelete(retryAccountId.value)
+        message.success('重试删除完成')
+        loadData()
+    } catch (e) {
+        message.error(e?.message || '重试失败')
+    } finally {
+        retryLoading.value = false
+    }
+}
+
 const isDeletedColor = (status) => {
     const map = { pending: 'orange', deleted: 'green', failed: 'red' }
     return map[status] || 'default'
@@ -136,5 +182,6 @@ const isDeletedText = (status) => {
 
 onMounted(() => {
     loadData()
+    loadAgentTokenOptions()
 })
 </script>

@@ -178,6 +178,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		AccountInfo: accountInfo,
 		Oceanengine: bizOceanengine,
 		AgentToken:  agentToken,
+		HostRule:    hostRule,
 	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,

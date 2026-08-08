@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
@@ -12,6 +13,7 @@ type Crontab struct {
 	AccountInfo *dal.AccountInfo
 	Oceanengine *Oceanengine
 	AgentToken  *dal.AgentToken
+	HostRule    *dal.HostRule
 }
 
 func (s *Crontab) SyncAccounts(ctx context.Context, accountID int64, StartDate, EndDate string) error {
@@ -124,4 +126,68 @@ func (s *Crontab) NeedRefresh(token *schema.AgentToken) bool {
 	// 检查token是否过期（当前时间戳 - tokentime > 86400），此处修改为提前400s，因为定时任务是每5分钟执行一次，所以提前400s确保在5分钟内刷新
 	currentTime := time.Now().Unix()
 	return currentTime-int64(token.TokenTime) > 86000
+}
+
+func (s *Crontab) HandleHostRule() error {
+	ctx := context.Background()
+	rules, err := s.HostRule.QueryAllEnabled(ctx)
+	if err != nil {
+		return fmt.Errorf("查询启用托管规则失败: %w", err)
+	}
+
+	now := time.Now()
+	for _, rule := range rules {
+		// 判断当前时间是否在生效日期范围内
+		if now.Before(rule.TriggerStartDate) || now.After(rule.TriggerEndDate) {
+			continue
+		}
+
+		// 解析 trigger_condition JSON 为 CustomReportReq
+		var condition struct {
+			DataTopic  string                       `json:"dataTopic"`
+			Dimensions []string                     `json:"dimensions"`
+			Metrics    []string                     `json:"metrics"`
+			Filters    []schema.CustomReportFilter  `json:"filters"`
+			OrderBy    []schema.CustomReportOrderBy `json:"order_by"`
+		}
+		if err := json.Unmarshal([]byte(rule.TriggerCondition), &condition); err != nil {
+			fmt.Printf("解析规则 %d trigger_condition 失败: %v\n", rule.ID, err)
+			continue
+		}
+
+		// 解析 TargetAccounts JSON 获取 account IDs
+		var accountIDs []string
+		if err := json.Unmarshal([]byte(rule.TargetAccounts), &accountIDs); err != nil {
+			fmt.Printf("解析规则 %d target_accounts 失败: %v\n", rule.ID, err)
+			continue
+		}
+
+		for _, accountIDStr := range accountIDs {
+			advertiserID, err := fmt.Sscanf(accountIDStr, "%d", new(int64))
+			if err != nil {
+				continue
+			}
+			_ = advertiserID
+
+			req := schema.CustomReportReq{
+				DataTopic:  condition.DataTopic,
+				Dimensions: condition.Dimensions,
+				Metrics:    condition.Metrics,
+				Filters:    condition.Filters,
+				OrderBy:    condition.OrderBy,
+				StartTime:  now.Format("2006-01-02"),
+				EndTime:    now.Format("2006-01-02"),
+				Page:       1,
+				PageSize:   10,
+			}
+
+			_, err = s.Oceanengine.QueryCustomReport(ctx, rule.AgentID, req)
+			if err != nil {
+				fmt.Printf("规则 %d 查询自定义报表失败(account=%s): %v\n", rule.ID, accountIDStr, err)
+				continue
+			}
+		}
+	}
+
+	return nil
 }

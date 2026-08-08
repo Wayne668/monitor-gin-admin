@@ -77,6 +77,17 @@ func (a *DeleteUnauditedMaterial) Update(ctx context.Context, item *schema.Delet
 	return errors.WithStack(result.Error)
 }
 
+// QueryFailedForRetry 查询删除失败且重试次数小于3的记录
+func (a *DeleteUnauditedMaterial) QueryFailedForRetry(ctx context.Context) ([]*schema.DeleteUnauditedMaterial, error) {
+	var list []*schema.DeleteUnauditedMaterial
+	db := GetDeleteUnauditedMaterialDB(ctx, a.DB).Where("is_deleted = ? AND retry_times < ?", "failed", 3)
+	result := db.Find(&list)
+	if result.Error != nil {
+		return nil, errors.WithStack(result.Error)
+	}
+	return list, nil
+}
+
 // Delete 删除素材删除记录
 func (a *DeleteUnauditedMaterial) Delete(ctx context.Context, id uint) error {
 	result := GetDeleteUnauditedMaterialDB(ctx, a.DB).Where("id=?", id).Delete(new(schema.DeleteUnauditedMaterial))

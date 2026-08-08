@@ -27,6 +27,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 	crontab := v1.Group("crontab")
 	{
 		crontab.POST("refresh-token", a.CrontabAPI.RefreshToken)
+		crontab.POST("handle-host-rule", a.CrontabAPI.HandleHostRule)
 	}
 
 	hostRule := v1.Group("host-rules")
@@ -60,6 +61,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		v1.POST("get-target-by-account", a.HostRuleAPI.GetTargetsByAccount)
 		v1.GET("get-unaudited-material", a.DeleteUnauditedMaterialAPI.GetUnAudititedMaterial)
 		v1.POST("delete-unaudited-material", a.DeleteUnauditedMaterialAPI.DeleteUnAudititedMaterial)
+		v1.POST("retry-failed-delete", a.DeleteUnauditedMaterialAPI.RetryFailedDelete)
 	}
 
 	deleteMaterial := v1.Group("delete-unaudited-material-records")

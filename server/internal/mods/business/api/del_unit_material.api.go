@@ -111,3 +111,25 @@ func (a *DeleteUnauditedMaterial) DeleteUnAudititedMaterial(c *gin.Context) {
 	}
 	util.ResOK(c)
 }
+
+// RetryFailedDelete 重试删除失败的记录
+func (a *DeleteUnauditedMaterial) RetryFailedDelete(c *gin.Context) {
+	ctx := c.Request.Context()
+	accountIDStr := c.Query("accountId")
+	if accountIDStr == "" {
+		util.ResError(c, errors.BadRequest("", "accountId is required"))
+		return
+	}
+	accountID, err := strconv.ParseInt(accountIDStr, 10, 64)
+	if err != nil {
+		util.ResError(c, errors.BadRequest("", "invalid accountId"))
+		return
+	}
+
+	err = a.DeleteUnauditedMaterialBIZ.RetryFailedDelete(ctx, accountID)
+	if err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResOK(c)
+}
