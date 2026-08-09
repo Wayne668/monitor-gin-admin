@@ -103,7 +103,7 @@ const agentTokenOptions = ref([])
 
 const loadAgentTokenOptions = async () => {
     try {
-        const res = await getAgentTokenList({ current: 1, pageSize: 999 })
+        const res = await getAgentTokenList({ current: 1, pageSize: 100 })
         agentTokenOptions.value = (res.data || []).map((t) => ({
             label: `${t.accountName} (${t.accountId})`,
             value: t.accountId,

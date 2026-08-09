@@ -24,10 +24,10 @@
             <a-divider orientation="left">授权账户</a-divider>
 
             <a-form-item
-                label="选择代理商账户"
-                name="selectedAccountId">
+                label="代理商账户"
+                name="selectedAgentId">
                 <a-select
-                    v-model:value="form.selectedAccountId"
+                    v-model:value="form.selectedAgentId"
                     placeholder="请选择代理商账户（用于获取 access_token）"
                     style="max-width: 400px"
                     :options="agentTokenOptions"
@@ -42,7 +42,8 @@
                 name="target">
                 <a-radio-group
                     v-model:value="form.target"
-                    button-style="solid">
+                    button-style="solid"
+                    :disabled="!form.selectedAgentId">
                     <a-radio-button value="account">账户</a-radio-button>
                     <a-radio-button
                         value="project"
@@ -60,7 +61,8 @@
                 name="scopeType">
                 <a-radio-group
                     v-model:value="form.scopeType"
-                    button-style="solid">
+                    button-style="solid"
+                    :disabled="!form.selectedAgentId">
                     <a-radio-button
                         v-for="opt in scopeTypeOptions"
                         :key="opt.value"
@@ -78,6 +80,7 @@
                     :options="accountOptions"
                     :target="form.target"
                     :scope-type="form.scopeType"
+                    :account-id="form.selectedAgentId"
                     @targets-loaded="handleTargetsLoaded" />
                 <a-alert
                     v-if="showTargetTransfer && targetOptions.length === 0"
@@ -120,7 +123,8 @@
                             v-model:value="form.action"
                             placeholder="请选择执行动作"
                             style="width: 100%"
-                            :options="actionOptions" />
+                            :options="actionOptions"
+                            :disabled="!form.selectedAgentId" />
                     </div>
                 </div>
             </a-form-item>
@@ -134,7 +138,8 @@
                 style="margin-top: 16px">
                 <a-radio-group
                     v-model:value="form.checkFreq"
-                    button-style="solid">
+                    button-style="solid"
+                    :disabled="!form.selectedAgentId">
                     <a-radio-button value="15">15分钟</a-radio-button>
                     <a-radio-button value="30">30分钟</a-radio-button>
                     <a-radio-button value="60">60分钟</a-radio-button>
@@ -147,7 +152,8 @@
                 name="dateRange">
                 <a-range-picker
                     v-model:value="form.dateRange"
-                    value-format="YYYY-MM-DD" />
+                    value-format="YYYY-MM-DD"
+                    :disabled="!form.selectedAgentId" />
             </a-form-item>
 
             <a-form-item
@@ -155,7 +161,7 @@
                 name="notifyMethods">
                 <a-checkbox-group v-model:value="form.notifyMethods">
                     <a-checkbox value="sms" disabled>短信通知</a-checkbox>
-                    <a-checkbox value="dingtalk">钉钉群机器人</a-checkbox>
+                    <a-checkbox value="dingtalk" :disabled="!form.selectedAgentId">钉钉群机器人</a-checkbox>
                 </a-checkbox-group>
             </a-form-item>
 
@@ -166,7 +172,8 @@
                 <a-input
                     v-model:value="form.notifyPhones"
                     placeholder="多个手机号用英文逗号分隔"
-                    style="max-width: 400px" />
+                    style="max-width: 400px"
+                    :disabled="!form.selectedAgentId" />
             </a-form-item>
 
             <a-form-item
@@ -176,7 +183,8 @@
                 <a-input
                     v-model:value="form.dingtalkWebhookUrl"
                     placeholder="请输入钉钉群机器人 Webhook URL"
-                    style="max-width: 400px" />
+                    style="max-width: 400px"
+                    :disabled="!form.selectedAgentId" />
             </a-form-item>
 
             <a-form-item
@@ -185,14 +193,15 @@
                 <a-input
                     v-model:value="form.name"
                     placeholder="请输入规则名称"
-                    style="max-width: 400px" />
+                    style="max-width: 400px"
+                    :disabled="!form.selectedAgentId" />
             </a-form-item>
 
             <a-form-item
                 label=" "
                 name="agreeTerms"
                 :colon="false">
-                <a-checkbox v-model:checked="form.agreeTerms">
+                <a-checkbox v-model:checked="form.agreeTerms" :disabled="!form.selectedAgentId">
                     我同意授权深圳市零一聚合根据我提交的规则信息管理我名下广告账户以及广告
                 </a-checkbox>
             </a-form-item>
@@ -204,6 +213,7 @@
                 <a-button
                     type="primary"
                     :loading="saving"
+                    :disabled="!form.selectedAgentId"
                     @click="handleSave"
                     style="margin-left: 8px"
                     >保存</a-button
@@ -294,7 +304,7 @@ const agentTokenOptions = ref([])
 
 const loadAgentTokens = async () => {
     try {
-        const res = await getAgentTokenList({ pageSize: 999 })
+        const res = await getAgentTokenList({ pageSize: 100 })
         agentTokenOptions.value = (res.data || []).map((item) => ({
             label: `${item.accountName} (${item.accountId})`,
             value: item.accountId,
@@ -325,7 +335,7 @@ onMounted(() => {
 const form = reactive({
     target: 'account',
     scopeType: undefined,
-    selectedAccountId: undefined,
+    selectedAgentId: undefined,
     selectedAccountIds: [],
     selectedTargetIds: [],
     targetPromotion: [],
@@ -389,7 +399,7 @@ watch(
 const rules = reactive({
     target: [{ required: true, message: '请选择托管目标', trigger: 'change' }],
     scopeType: [{ required: true, message: '请选择范围类型', trigger: 'change' }],
-    selectedAccountId: [{ required: true, message: '请选择代理商账户', trigger: 'change' }],
+    selectedAgentId: [{ required: true, message: '请选择代理商账户', trigger: 'change' }],
     selectedAccountIds: [{ type: 'array', required: true, min: 1, message: '请至少选择一个账户', trigger: 'change' }],
     action: [{ required: true, message: '请选择执行操作', trigger: 'change' }],
     checkFreq: [{ required: true, message: '请选择检查频率', trigger: 'change' }],
@@ -423,7 +433,7 @@ const handleSave = async () => {
             ruleName: form.name,
             target: form.target,
             scopeType: form.scopeType,
-            selectedAccountId: form.selectedAccountId,
+            selectedAgentId: form.selectedAgentId,
             selectedAccountIds: form.selectedAccountIds,
             selectedTargetIds: form.selectedTargetIds,
             conditionConfig: form.conditionConfig,

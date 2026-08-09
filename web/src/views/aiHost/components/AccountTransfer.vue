@@ -90,6 +90,7 @@ const props = defineProps({
     modelValue: { type: Array, default: () => [] },
     target: { type: String, default: '' },
     scopeType: { type: String, default: '' },
+    agentId: { type: [String, Number], default: undefined },
 })
 
 const emit = defineEmits(['update:modelValue', 'targets-loaded'])
@@ -153,6 +154,7 @@ const handleConfirm = async () => {
         const res = await getTargetByAccount({
             target: props.target,
             accountIds: [...checkedKeys.value],
+            agentId: props.agentId,
         })
         const items = res?.data || []
         message.success(`已加载 ${items.length} 条目标数据`)

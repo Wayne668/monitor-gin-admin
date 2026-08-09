@@ -16,7 +16,7 @@ type Promotion struct {
 
 // FindByAccountIDs 根据账户ID列表查询启用状态的广告列表，fields 指定查询字段
 // DB无数据时调用Oceanengine API拉取并写入数据库后返回
-func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fields []string) ([]schema.Promotion, error) {
+func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, accountIDs []int64, fields []string) ([]schema.Promotion, error) {
 	list, err := a.PromotionDAL.FindByAccountIDs(ctx, accountIDs, fields)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,12 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fi
 	}
 
 	// DB无数据，调用Oceanengine API拉取
-	accountID := int64(0) // TODO: 从配置/上下文中获取 accountID
-	if accountID == 0 {
+	if agentID == 0 {
 		// 未配置 accountID，直接返回空列表，避免调用API失败导致500
 		return nil, nil
 	}
 
-	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, accountID)
+	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, agentID)
 	if err != nil {
 		return nil, fmt.Errorf("从Oceanengine拉取广告数据失败: %w", err)
 	}

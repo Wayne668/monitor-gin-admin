@@ -81,6 +81,7 @@ func (a *HostRuleUpdateStatusForm) Validate() error {
 type TargetByAccountReq struct {
 	Target     string   `json:"target" binding:"required,oneof=promotion creative"`
 	AccountIDs []string `json:"accountIds" binding:"required,min=1"`
+	AgentID  int64    `json:"agentId" binding:"required"`
 }
 
 func (a *TargetByAccountReq) Validate() error {

@@ -17,7 +17,7 @@ type MaterialVideo struct {
 
 // FindByAccountIDs 根据账户ID列表查询视频素材列表，fields 指定查询字段
 // 按账户维度同步：有记录则增量同步（按 advertiser_id+material_id 去重），无记录则全量同步
-func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64, fields []string) ([]schema.MaterialVideo, error) {
+func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, agentID int64, accountIDs []int64, fields []string) ([]schema.MaterialVideo, error) {
 	// 查询每个账户的最新 updated_at
 	lastSyncMap, err := a.MaterialVideoDAL.GetLastUpdatedAtByAccountIDs(ctx, accountIDs)
 	if err != nil {
@@ -27,8 +27,7 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 	endDate := time.Now().Format("2006-01-02")
 	var allNewItems []schema.MaterialVideo
 
-	accountID := int64(0) // TODO: 从配置/上下文中获取 accountID
-	if accountID == 0 {
+	if agentID == 0 {
 		// 未配置 accountID，直接查询DB返回，避免调用API失败导致500
 		return a.MaterialVideoDAL.FindByAccountIDs(ctx, accountIDs, fields)
 	}
@@ -43,7 +42,7 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 			apiEndDate = endDate
 		}
 		// 无记录：startDate="" endDate="" 全量拉取
-		items, err := a.Oceanengine.GetVideoMaterial(ctx, accountID, advertiserID, startDate, apiEndDate)
+		items, err := a.Oceanengine.GetVideoMaterial(ctx, agentID, advertiserID, startDate, apiEndDate)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 视频素材失败: %w", advertiserID, err)
 		}

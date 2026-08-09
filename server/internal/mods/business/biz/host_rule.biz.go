@@ -67,7 +67,7 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 	items := make([]schema.TargetItem, 0)
 	switch req.Target {
 	case "promotion":
-		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, ids, []string{"id", "promotion_name", "advertiser_id"})
+		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, req.AgentID, ids, []string{"id", "promotion_name", "advertiser_id"})
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 			})
 		}
 	case "creative":
-		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, ids, []string{"id", "file_name", "advertiser_id"})
+		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, req.AgentID, ids, []string{"id", "file_name", "advertiser_id"})
 		if err != nil {
 			return nil, err
 		}
