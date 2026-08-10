@@ -7,7 +7,8 @@
                         v-model:value="keyword"
                         placeholder="搜索账户名称/ID"
                         size="small"
-                        allow-clear>
+                        allow-clear
+                        :disabled="props.disabled">
                         <template #prefix><SearchOutlined /></template>
                     </a-input>
                 </a-form-item-rest>
@@ -17,6 +18,7 @@
                     <a-checkbox
                         :checked="isAllSelected"
                         :indeterminate="isIndeterminate"
+                        :disabled="props.disabled"
                         @change="handleSelectAll">
                         全选 ({{ filteredList.length }})
                     </a-checkbox>
@@ -30,7 +32,7 @@
                         v-for="item in filteredList"
                         :key="item.id"
                         class="account-item">
-                        <a-checkbox :value="item.id">{{ item.name }} （{{ item.id }}）</a-checkbox>
+                        <a-checkbox :value="item.id" :disabled="props.disabled">{{ item.name }} （{{ item.id }}）</a-checkbox>
                     </div>
                 </a-checkbox-group>
                 <a-empty
@@ -45,7 +47,7 @@
                 <a-button
                     type="link"
                     size="small"
-                    :disabled="selectedItems.length === 0"
+                    :disabled="props.disabled || selectedItems.length === 0"
                     @click="clearAll">
                     清空
                 </a-button>
@@ -70,7 +72,7 @@
                     type="primary"
                     size="small"
                     :loading="loading"
-                    :disabled="selectedItems.length === 0"
+                    :disabled="props.disabled || selectedItems.length === 0"
                     @click="handleConfirm">
                     确定
                 </a-button>
@@ -84,6 +86,7 @@ import { ref, computed, watch } from 'vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { getTargetByAccount } from '@/apis/modules/hostRule'
+import { getHostAccountList } from '@/apis/modules/hostRule'
 
 const props = defineProps({
     options: { type: Array, default: () => [] },
@@ -91,6 +94,7 @@ const props = defineProps({
     target: { type: String, default: '' },
     scopeType: { type: String, default: '' },
     agentId: { type: [String, Number], default: undefined },
+    disabled: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'targets-loaded'])
@@ -98,6 +102,36 @@ const emit = defineEmits(['update:modelValue', 'targets-loaded'])
 const keyword = ref('')
 const checkedKeys = ref([...props.modelValue])
 const loading = ref(false)
+const accounts = ref([])
+const accountsLoading = ref(false)
+
+// 根据 agentId 加载托管账户列表
+const loadAccounts = async () => {
+    if (!props.agentId) {
+        accounts.value = []
+        return
+    }
+    accountsLoading.value = true
+    try {
+        const res = await getHostAccountList({ agentId: props.agentId })
+        const list = res?.data || []
+        accounts.value = list.map((item) => ({
+            id: String(item.advertiserId),
+            name: item.advertiserName,
+        }))
+    } catch {
+        accounts.value = []
+    } finally {
+        accountsLoading.value = false
+    }
+}
+
+// agentId 变化时重新加载
+watch(() => props.agentId, () => {
+    checkedKeys.value = []
+    emit('update:modelValue', [])
+    loadAccounts()
+}, { immediate: true })
 
 // 仅"指定广告/创意"和"排除指定广告/创意"需要选具体目标，才显示「确定」按钮加载目标数据
 const showConfirmBtn = computed(() => {
@@ -107,11 +141,11 @@ const showConfirmBtn = computed(() => {
 
 const filteredList = computed(() => {
     const kw = keyword.value.trim().toLowerCase()
-    if (!kw) return props.options
-    return props.options.filter((o) => o.name.toLowerCase().includes(kw) || String(o.id).toLowerCase().includes(kw))
+    if (!kw) return accounts.value
+    return accounts.value.filter((o) => o.name.toLowerCase().includes(kw) || String(o.id).toLowerCase().includes(kw))
 })
 
-const selectedItems = computed(() => props.options.filter((o) => checkedKeys.value.includes(o.id)))
+const selectedItems = computed(() => accounts.value.filter((o) => checkedKeys.value.includes(o.id)))
 
 const isAllSelected = computed(
     () => filteredList.value.length > 0 && filteredList.value.every((o) => checkedKeys.value.includes(o.id))

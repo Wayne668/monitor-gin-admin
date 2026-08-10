@@ -80,7 +80,8 @@
                     :options="accountOptions"
                     :target="form.target"
                     :scope-type="form.scopeType"
-                    :account-id="form.selectedAgentId"
+                    :agent-id="form.selectedAgentId"
+                    :disabled="!form.selectedAgentId || ((form.target === 'promotion' || form.target === 'creative') && !form.scopeType)"
                     @targets-loaded="handleTargetsLoaded" />
                 <a-alert
                     v-if="showTargetTransfer && targetOptions.length === 0"

@@ -19,3 +19,6 @@ export const getUnauditedMaterial = (params) => request.basic.get('/api/v1/get-u
 
 // 批量删除未审核素材
 export const deleteUnauditedMaterial = (params) => request.basic.post('/api/v1/delete-unaudited-material', params)
+
+// 根据代理商ID获取托管账户列表
+export const getHostAccountList = (params) => request.basic.get('/api/v1/host-account-list', params)

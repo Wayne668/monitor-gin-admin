@@ -66,7 +66,7 @@ type PromotionListItem struct {
 	PromotionMaterials *PromotionMaterials `json:"promotion_materials"`
 	AdvertiserID       int64               `json:"advertiser_id"`
 	StatusFirst        string              `json:"status_first"`
-	StatusSecond       string              `json:"status_second"`
+	StatusSecond       []string            `json:"status_second"`
 	OptStatus          string              `json:"opt_status"`
 }
 

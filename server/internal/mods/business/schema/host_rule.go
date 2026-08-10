@@ -81,7 +81,7 @@ func (a *HostRuleUpdateStatusForm) Validate() error {
 type TargetByAccountReq struct {
 	Target     string   `json:"target" binding:"required,oneof=promotion creative"`
 	AccountIDs []string `json:"accountIds" binding:"required,min=1"`
-	AgentID  int64    `json:"agentId" binding:"required"`
+	AgentID    string   `json:"agentId" binding:"required"`
 }
 
 func (a *TargetByAccountReq) Validate() error {
@@ -90,9 +90,8 @@ func (a *TargetByAccountReq) Validate() error {
 
 // TargetItem 目标项
 type TargetItem struct {
-	ID           uint   `json:"id" gorm:"primarykey"`
-	Name         string `json:"name"`
-	AdvertiserID string `json:"advertiserId"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // HostRuleForm 新增/编辑托管规则表单
@@ -101,7 +100,7 @@ type HostRuleForm struct {
 	RuleName           string      `json:"ruleName" binding:"required,max=50"`
 	Target             string      `json:"target" binding:"required,oneof=account project promotion creative"`
 	ScopeType          string      `json:"scopeType"`
-	SelectedAccountID  string      `json:"selectedAccountId"` // nb_agent_token.account_id
+	SelectedAgentID    string      `json:"selectedAgentId"` // nb_agent_token.account_id
 	SelectedAccountIds []string    `json:"selectedAccountIds"`
 	SelectedTargetIds  []string    `json:"selectedTargetIds"`
 	ConditionConfig    interface{} `json:"conditionConfig"`
@@ -119,11 +118,17 @@ func (a *HostRuleForm) Validate() error {
 func (a *HostRuleForm) FillTo(item *HostRule) {
 	item.RuleName = a.RuleName
 	item.Target = a.Target
-	item.AgentID, _ = strconv.ParseInt(a.SelectedAccountID, 10, 64)
+	item.AgentID, _ = strconv.ParseInt(a.SelectedAgentID, 10, 64)
 	// 使用条件与操作 JSON 序列化
 	condJSON, _ := json.Marshal(a.ConditionConfig)
 	item.TriggerCondition = string(condJSON)
 	item.ExecuteAction = a.Action
+	// logic 映射到 operate_method：and=0, or=1
+	if cfg, ok := a.ConditionConfig.(map[string]interface{}); ok {
+		if logic, ok := cfg["logic"].(string); ok && logic == "or" {
+			item.OperateMethod = 1
+		}
+	}
 	item.TriggerFrequency = a.CheckFreq
 	// 生效日期
 	if len(a.DateRange) == 2 {
@@ -135,11 +140,16 @@ func (a *HostRuleForm) FillTo(item *HostRule) {
 	// 账户列表
 	accountsJSON, _ := json.Marshal(a.SelectedAccountIds)
 	item.TargetAccounts = string(accountsJSON)
-	// 目标列表
+	// 目标列表（按 target 类型写入对应字段）
 	targetJSON, _ := json.Marshal(a.SelectedTargetIds)
-	item.TargetPromotion = string(targetJSON)
-	item.TargetProjects = string(targetJSON)
-	item.TargetMaterial = string(targetJSON)
+	switch a.Target {
+	case "promotion":
+		item.TargetPromotion = string(targetJSON)
+	case "creative":
+		item.TargetMaterial = string(targetJSON)
+	case "project":
+		item.TargetProjects = string(targetJSON)
+	}
 	// 通知方式映射到 NotifyFrequency
 	notifyVal := 0
 	for _, m := range a.NotifyMethods {

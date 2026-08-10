@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
+	"monitor-gin-admin/pkg/logging"
 	"monitor-gin-admin/pkg/util"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // Oceanengine management for business
@@ -101,9 +104,11 @@ func (o *Oceanengine) QueryCustomReport(ctx context.Context, accountID int64, re
 	}
 	err = util.DoGetRequestWithJsonParams(accessToken, util.APICustomReportData, params, &resp)
 	if err != nil {
+		logging.Context(ctx).Error("QueryCustomReport API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", req.AdvertiserID))
 		return nil, err
 	}
 	if resp.Code != 0 {
+		logging.Context(ctx).Error("QueryCustomReport API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 		return nil, fmt.Errorf("查询自定义报表失败: code=%d, message=%s", resp.Code, resp.Message)
 	}
 	return &resp, nil
@@ -135,10 +140,12 @@ func (o *Oceanengine) GetAdvertiserIDs(ctx context.Context, accountID int64, adv
 		var resp schema.AdvertiserSelectResponse
 		err := util.DoGetRequest(accessToken, util.APIAdvertiserSelect, params, &resp)
 		if err != nil {
+			logging.Context(ctx).Error("GetAdvertiserIDs API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.String("advertiser_id", advertiserID))
 			return nil, err
 		}
 
 		if resp.Code != 0 {
+			logging.Context(ctx).Error("GetAdvertiserIDs API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 			return nil, fmt.Errorf("code=%d, message=%s", resp.Code, resp.Message)
 		}
 
@@ -169,21 +176,23 @@ func (o *Oceanengine) GetAdvertiserInfo(ctx context.Context, accountID int64, ac
 	idsJSON, _ := json.Marshal(accountIDs)
 	params.Add("account_ids", string(idsJSON))
 
-	var resp schema.AdvertiserInfoResponse
-	err = util.DoGetRequest(accessToken, util.APIAdvertiserInfo, params, &resp)
+	var resp2 schema.AdvertiserInfoResponse
+	err = util.DoGetRequest(accessToken, util.APIAdvertiserInfo, params, &resp2)
 	if err != nil {
+		logging.Context(ctx).Error("GetAdvertiserInfo API request failed", zap.Error(err), zap.Int64("account_id", accountID))
 		return nil, err
 	}
 
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("获取账户详情失败: code=%d, message=%s", resp.Code, resp.Message)
+	if resp2.Code != 0 {
+		logging.Context(ctx).Error("GetAdvertiserInfo API returned error", zap.Int("code", resp2.Code), zap.String("message", resp2.Message), zap.Int64("account_id", accountID))
+		return nil, fmt.Errorf("获取账户详情失败: code=%d, message=%s", resp2.Code, resp2.Message)
 	}
 
-	return resp.Data.AccountDetailList, nil
+	return resp2.Data.AccountDetailList, nil
 }
 
-func (o *Oceanengine) GetRefPromotionData(ctx context.Context, accountID int64, advertiserId int64, filtering map[string]interface{}, fields []string) ([]schema.PromotionListItem, error) {
-	accessToken, err := o.getAccessToken(ctx, accountID)
+func (o *Oceanengine) GetRefPromotionData(ctx context.Context, agentID int64, advertiserId int64, filtering map[string]interface{}, fields []string) ([]schema.PromotionListItem, error) {
+	accessToken, err := o.getAccessToken(ctx, agentID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,11 +210,14 @@ func (o *Oceanengine) GetRefPromotionData(ctx context.Context, accountID int64, 
 			"page":          page,
 			"page_size":     pageSize,
 		}
+
 		err := util.DoGetRequestWithJsonParams(accessToken, util.APIPromotionListGet, params, &resp)
 		if err != nil {
+			logging.Context(ctx).Error("GetRefPromotionData API request failed", zap.Error(err), zap.Int64("agent_id", agentID), zap.Int64("advertiser_id", advertiserId))
 			return nil, fmt.Errorf("获取单元列表失败: %w", err)
 		}
 		if resp.Code != 0 {
+			logging.Context(ctx).Error("GetRefPromotionData API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("agent_id", agentID))
 			return nil, fmt.Errorf("获取单元列表返回错误: code=%d msg=%s", resp.Code, resp.Message)
 		}
 
@@ -218,9 +230,6 @@ func (o *Oceanengine) GetRefPromotionData(ctx context.Context, accountID int64, 
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if len(allList) == 0 {
-		return nil, fmt.Errorf("没有单元")
-	}
 	return allList, nil
 }
 
@@ -246,9 +255,11 @@ func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, adv
 		req["page"] = page
 		var resp schema.ADVideoListResp
 		if err := util.DoGetRequestWithJsonParams(accessToken, util.APIFileVideoGet, req, &resp); err != nil {
+			logging.Context(ctx).Error("GetVideoMaterial API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
 			return nil, fmt.Errorf("请求AD视频列表失败: %w", err)
 		}
 		if resp.Code != 0 {
+			logging.Context(ctx).Error("GetVideoMaterial API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 			return nil, fmt.Errorf("AD视频列表返回错误: code=%d msg=%s", resp.Code, resp.Message)
 		}
 
@@ -309,9 +320,11 @@ func (o *Oceanengine) GetADVideoTempUrl(ctx context.Context, accountID int64, vi
 
 	var resp schema.ADVideoListResp
 	if err := util.DoGetRequestWithJsonParams(accessToken, util.APIFileVideoGet, req, &resp); err != nil {
+		logging.Context(ctx).Error("GetADVideoTempUrl API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
 		return nil, fmt.Errorf("请求AD视频URL失败: %w", err)
 	}
 	if resp.Code != 0 {
+		logging.Context(ctx).Error("GetADVideoTempUrl API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 		return nil, fmt.Errorf("AD视频URL返回错误: code=%d msg=%s", resp.Code, resp.Message)
 	}
 	for _, item := range resp.Data.List {
@@ -379,11 +392,13 @@ func (o *Oceanengine) UpdatePromotionStatus(ctx context.Context, accountID int64
 		}
 
 		if err := util.DoPostJSONRequest(accessToken, util.APIPromotionStatusUpdate, reqBody, &resp); err != nil {
+			logging.Context(ctx).Error("UpdatePromotionStatus API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
 			return lastReqID, fmt.Errorf("第 %d 批更新营销状态请求失败: %w", batchID, err)
 		}
 		lastReqID = resp.RequestID
 
 		if resp.Code != 0 {
+			logging.Context(ctx).Error("UpdatePromotionStatus API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 			return lastReqID, fmt.Errorf("第 %d 批更新营销状态失败: code=%d message=%s", batchID, resp.Code, resp.Message)
 		}
 
@@ -465,11 +480,13 @@ func (o *Oceanengine) UpdateMaterialStatus(ctx context.Context, accountID int64,
 		}
 
 		if err := util.DoPostJSONRequest(accessToken, util.APIPromotionMaterialStatusUpdate, reqBody, &resp); err != nil {
+			logging.Context(ctx).Error("UpdateMaterialStatus API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
 			return lastReqID, fmt.Errorf("第 %d 批更新素材状态请求失败: %w", batchID, err)
 		}
 		lastReqID = resp.RequestID
 
 		if resp.Code != 0 {
+			logging.Context(ctx).Error("UpdateMaterialStatus API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 			return lastReqID, fmt.Errorf("第 %d 批更新素材状态失败: code=%d message=%s", batchID, resp.Code, resp.Message)
 		}
 
@@ -514,10 +531,12 @@ func (o *Oceanengine) DeleteMaterialUnderPromotion(ctx context.Context, accountI
 	}
 
 	if err := util.DoPostJSONRequest(accessToken, util.APIPromotionMaterialDelete, reqBody, &resp); err != nil {
+		logging.Context(ctx).Error("DeleteMaterialUnderPromotion API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId), zap.Int64("material_id", materialId))
 		return "", fmt.Errorf("删除营销下素材请求失败: %w", err)
 	}
 
 	if resp.Code != 0 {
+		logging.Context(ctx).Error("DeleteMaterialUnderPromotion API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
 		return resp.RequestID, fmt.Errorf("删除营销下素材失败: code=%d message=%s", resp.Code, resp.Message)
 	}
 

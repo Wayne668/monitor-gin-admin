@@ -430,6 +430,59 @@
                         "path": "/api/v1/agent-tokens/{id}"
                     }
                 ]
+            },
+            {
+                "code": "hostAccount",
+                "name": "托管账户",
+                "sequence": 70,
+                "type": "page",
+                "path": "/tools/hostAccount",
+                "status": "enabled",
+                "children": [
+                    {
+                        "code": "add",
+                        "name": "新建",
+                        "sequence": 8,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "edit",
+                        "name": "编辑",
+                        "sequence": 7,
+                        "type": "button",
+                        "status": "enabled"
+                    },
+                    {
+                        "code": "delete",
+                        "name": "删除",
+                        "sequence": 6,
+                        "type": "button",
+                        "status": "enabled"
+                    }
+                ],
+                "resources": [
+                    {
+                        "method": "GET",
+                        "path": "/api/v1/host-accounts"
+                    },
+                    {
+                        "method": "GET",
+                        "path": "/api/v1/host-accounts/{id}"
+                    },
+                    {
+                        "method": "POST",
+                        "path": "/api/v1/host-accounts"
+                    },
+                    {
+                        "method": "PUT",
+                        "path": "/api/v1/host-accounts/{id}"
+                    },
+                    {
+                        "method": "DELETE",
+                        "path": "/api/v1/host-accounts/{id}"
+                    }
+                ]
             }
         ]
     }

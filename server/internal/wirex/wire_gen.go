@@ -145,6 +145,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	hostField := &dal2.HostField{
 		DB: db,
 	}
+	hostAccount := &dal2.HostAccount{
+		DB: db,
+	}
 
 	// === Shared Oceanengine instance with AgentTokenDAL ===
 	bizOceanengine := &biz2.Oceanengine{
@@ -174,6 +177,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	bizAgentToken := &biz2.AgentToken{
 		AgentTokenDAL: agentToken,
 	}
+	bizHostAccount := &biz2.HostAccount{
+		HostAccountDAL: hostAccount,
+	}
 	bizCrontab := &biz2.Crontab{
 		AccountInfo: accountInfo,
 		Oceanengine: bizOceanengine,
@@ -199,6 +205,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiAgentToken := &api2.AgentToken{
 		AgentTokenBIZ: bizAgentToken,
 	}
+	apiHostAccount := &api2.HostAccount{
+		HostAccountBIZ: bizHostAccount,
+	}
 	apiCrontab := &api2.Crontab{
 		CrontabBIZ: bizCrontab,
 	}
@@ -209,6 +218,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		DB:                         db,
 		HostRuleAPI:                apiHostRule,
 		HostFieldAPI:               apiHostField,
+		HostAccountAPI:             apiHostAccount,
 		AccountInfoAPI:             apiAccountInfo,
 		AgentTokenAPI:              apiAgentToken,
 		DeleteUnauditedMaterialAPI: apiDeleteUnauditedMaterial,

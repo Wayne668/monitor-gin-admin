@@ -20,3 +20,9 @@ func (Promotion) TableName() string {
 
 // PromotionStatusEnable 启用状态
 const PromotionStatusEnable = "PROMOTION_STATUS_ENABLE"
+
+// PromotionStatusAll 不限包含已删除
+const PromotionStatusAll = "PROMOTION_STATUS_ALL"
+
+// PromotionStatusNotDelete 不限不包含已删除
+const PromotionStatusNotDelete = "PROMOTION_STATUS_NOT_DELETE"

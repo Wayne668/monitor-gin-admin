@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
@@ -19,6 +20,7 @@ type Promotion struct {
 func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, accountIDs []int64, fields []string) ([]schema.Promotion, error) {
 	list, err := a.PromotionDAL.FindByAccountIDs(ctx, accountIDs, fields)
 	if err != nil {
+		fmt.Println("[Promotion.FindByAccountIDs] DB查询失败:", err)
 		return nil, err
 	}
 
@@ -34,6 +36,7 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, account
 
 	apiItems, err := a.FetchFromOceanengine(ctx, accountIDs, agentID)
 	if err != nil {
+		fmt.Println("[Promotion.FindByAccountIDs] Oceanengine拉取失败:", err)
 		return nil, fmt.Errorf("从Oceanengine拉取广告数据失败: %w", err)
 	}
 	if len(apiItems) == 0 {
@@ -41,6 +44,7 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, account
 	}
 
 	if err := a.PromotionDAL.SaveBatch(ctx, apiItems); err != nil {
+		fmt.Println("[Promotion.FindByAccountIDs] SaveBatch失败:", err)
 		return nil, fmt.Errorf("写入广告数据失败: %w", err)
 	}
 
@@ -49,16 +53,18 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, account
 }
 
 // FetchFromOceanengine 调用Oceanengine API拉取广告数据
-func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, accountID int64) ([]schema.Promotion, error) {
+func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, agentID int64) ([]schema.Promotion, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
+		// "status_first": schema.PromotionStatusNotDelete,
 	}
 	fields := []string{"promotion_id", "promotion_name", "status_first", "status_second", "opt_status"}
 
 	result := make([]schema.Promotion, 0)
 	for _, advertiserID := range accountIDs {
-		items, err := a.Oceanengine.GetRefPromotionData(ctx, accountID, advertiserID, filtering, fields)
+		items, err := a.Oceanengine.GetRefPromotionData(ctx, agentID, advertiserID, filtering, fields)
 		if err != nil {
+			fmt.Println("[Promotion.FetchFromOceanengine] GetRefPromotionData失败:", err)
 			return nil, fmt.Errorf("拉取账户 %d 广告失败: %w", advertiserID, err)
 		}
 		for _, item := range items {
@@ -67,7 +73,7 @@ func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64
 				PromotionID:   item.PromotionId,
 				PromotionName: item.PromotionName,
 				StatusFirst:   item.StatusFirst,
-				StatusSecond:  item.StatusSecond,
+				StatusSecond:  strings.Join(item.StatusSecond, ","),
 				OptStatus:     item.OptStatus,
 			})
 		}

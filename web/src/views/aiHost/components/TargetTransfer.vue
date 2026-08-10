@@ -30,10 +30,7 @@
                         v-for="item in filteredList"
                         :key="item.id"
                         class="target-item">
-                        <a-checkbox :value="item.id">
-                            {{ item.id }} - {{ item.name }}
-                            <span class="account-tag">[{{ item.advertiserId }}]</span>
-                        </a-checkbox>
+                        <a-checkbox :value="item.id">{{ item.name }} （{{ item.id }}）</a-checkbox>
                     </div>
                 </a-checkbox-group>
                 <a-empty

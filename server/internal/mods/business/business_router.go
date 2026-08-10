@@ -13,6 +13,7 @@ type Business struct {
 	DB                         *gorm.DB
 	HostRuleAPI                *api.HostRule
 	HostFieldAPI               *api.HostField
+	HostAccountAPI             *api.HostAccount
 	AccountInfoAPI             *api.AccountInfo
 	AgentTokenAPI              *api.AgentToken
 	DeleteUnauditedMaterialAPI *api.DeleteUnauditedMaterial
@@ -56,8 +57,18 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		agentToken.DELETE(":id", a.AgentTokenAPI.Delete)
 	}
 
+	hostAccount := v1.Group("host-accounts")
+	{
+		hostAccount.GET("", a.HostAccountAPI.Query)
+		hostAccount.GET(":id", a.HostAccountAPI.Get)
+		hostAccount.POST("", a.HostAccountAPI.Create)
+		hostAccount.PUT(":id", a.HostAccountAPI.Update)
+		hostAccount.DELETE(":id", a.HostAccountAPI.Delete)
+	}
+
 	{
 		v1.GET("account-list", a.AccountInfoAPI.FindEnabledAdvertisers)
+		v1.GET("host-account-list", a.HostAccountAPI.ListByAgent)
 		v1.POST("get-target-by-account", a.HostRuleAPI.GetTargetsByAccount)
 		v1.GET("get-unaudited-material", a.DeleteUnauditedMaterialAPI.GetUnAudititedMaterial)
 		v1.POST("delete-unaudited-material", a.DeleteUnauditedMaterialAPI.DeleteUnAudititedMaterial)

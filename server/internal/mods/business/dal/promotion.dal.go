@@ -19,7 +19,8 @@ type Promotion struct {
 func (a *Promotion) FindByAccountIDs(ctx context.Context, accountIDs []int64, fields []string) ([]schema.Promotion, error) {
 	var list []schema.Promotion
 	db := util.GetDB(ctx, a.DB).
-		Where("advertiser_id IN ? AND status_first = ?", accountIDs, schema.PromotionStatusEnable)
+		// Where("advertiser_id IN ? AND status_first = ?", accountIDs, schema.PromotionStatusEnable)
+		Where("advertiser_id IN ?", accountIDs)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}

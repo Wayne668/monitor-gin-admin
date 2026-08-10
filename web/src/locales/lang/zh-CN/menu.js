@@ -42,4 +42,5 @@ export default {
     materialWarn: '素材预警',
     materialDel: '素材删除',
     agentToken: '账户token',
+    hostAccount: '托管账户',
 }

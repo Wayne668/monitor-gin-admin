@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"time"
+
 	"monitor-gin-admin/pkg/util"
 )
 
@@ -12,19 +14,19 @@ var (
 
 // AgentToken 代理商账号授权&accesstoken
 type AgentToken struct {
-	ID           uint   `json:"id" gorm:"primarykey;autoIncrement;column:id"`
-	AccountName  string `json:"accountName" gorm:"column:account_name;type:varchar(255);comment:账号名"`
-	AccountID    string `json:"accountId" gorm:"column:account_id;type:varchar(50);comment:账号id"`
-	AuthStatus   string `json:"authStatus" gorm:"column:authstatus;type:varchar(255);comment:是否授权成功"`
-	AccessToken  string `json:"accessToken" gorm:"column:accesstoken;type:varchar(255)"`
-	RefreshToken string `json:"refreshToken" gorm:"column:refreshtoken;type:varchar(255);default:''"`
-	TokenTime    int64  `json:"tokenTime" gorm:"column:tokentime;comment:token更新时间"`
-	Remarks      string `json:"remarks" gorm:"column:remarks;type:varchar(255);default:'';comment:备注"`
-	AppID        string `json:"appId" gorm:"column:app_id;type:varchar(20);not null;default:''"`
-	AppSecret    string `json:"appSecret" gorm:"column:app_secret;type:varchar(50);not null;default:''"`
-	AppName      string `json:"appName" gorm:"column:app_name;type:varchar(255);not null;default:''"`
-	CreatedAt    string `json:"createdAt" gorm:"column:created_at;type:datetime;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    string `json:"updatedAt" gorm:"column:updated_at;type:datetime;default:CURRENT_TIMESTAMP"`
+	ID           uint      `json:"id" gorm:"primarykey;autoIncrement;column:id"`
+	AccountName  string    `json:"accountName" gorm:"column:account_name;type:varchar(255);comment:账号名"`
+	AccountID    string    `json:"accountId" gorm:"column:account_id;type:varchar(50);comment:账号id"`
+	AuthStatus   string    `json:"authStatus" gorm:"column:authstatus;type:varchar(255);comment:是否授权成功"`
+	AccessToken  string    `json:"accessToken" gorm:"column:accesstoken;type:varchar(255)"`
+	RefreshToken string    `json:"refreshToken" gorm:"column:refreshtoken;type:varchar(255);default:''"`
+	TokenTime    int64     `json:"tokenTime" gorm:"column:tokentime;comment:token更新时间"`
+	Remarks      string    `json:"remarks" gorm:"column:remarks;type:varchar(255);default:'';comment:备注"`
+	AppID        string    `json:"appId" gorm:"column:app_id;type:varchar(20);not null;default:''"`
+	AppSecret    string    `json:"appSecret" gorm:"column:app_secret;type:varchar(50);not null;default:''"`
+	AppName      string    `json:"appName" gorm:"column:app_name;type:varchar(255);not null;default:''"`
+	CreatedAt    time.Time `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt    time.Time `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
 }
 
 func (AgentToken) TableName() string {

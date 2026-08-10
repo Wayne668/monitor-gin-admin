@@ -64,30 +64,33 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 		ids = append(ids, n)
 	}
 
+	agentID, err := strconv.ParseInt(req.AgentID, 10, 64)
+	if err != nil {
+		return nil, errors.BadRequest("", "无效的代理商ID: "+req.AgentID)
+	}
+
 	items := make([]schema.TargetItem, 0)
 	switch req.Target {
 	case "promotion":
-		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, req.AgentID, ids, []string{"id", "promotion_name", "advertiser_id"})
+		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, agentID, ids, []string{"id", "promotion_id", "promotion_name", "advertiser_id"})
 		if err != nil {
 			return nil, err
 		}
 		for _, p := range promotions {
 			items = append(items, schema.TargetItem{
-				ID:           p.ID,
-				Name:         p.PromotionName,
-				AdvertiserID: strconv.FormatInt(p.AdvertiserID, 10),
+				ID:   strconv.FormatInt(p.PromotionID, 10),
+				Name: p.PromotionName,
 			})
 		}
 	case "creative":
-		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, req.AgentID, ids, []string{"id", "file_name", "advertiser_id"})
+		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, agentID, ids, []string{"id", "material_id", "file_name", "advertiser_id"})
 		if err != nil {
 			return nil, err
 		}
 		for _, m := range materials {
 			items = append(items, schema.TargetItem{
-				ID:           m.ID,
-				Name:         m.FileName,
-				AdvertiserID: strconv.FormatInt(m.AdvertiserID, 10),
+				ID:   strconv.FormatInt(m.MaterialID, 10),
+				Name: m.FileName,
 			})
 		}
 	}

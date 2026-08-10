@@ -1,4 +1,4 @@
-import { ToolOutlined, RobotOutlined, FieldNumberOutlined, KeyOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { ToolOutlined, RobotOutlined, FieldNumberOutlined, KeyOutlined, DeleteOutlined, SafetyOutlined } from '@ant-design/icons-vue'
 
 export default [
     {
@@ -133,6 +133,18 @@ export default [
                 meta: {
                     icon: KeyOutlined,
                     title: '账户token',
+                    isMenu: true,
+                    keepAlive: true,
+                    permission: '*',
+                },
+            },
+            {
+                path: 'hostAccount',
+                name: 'hostAccount',
+                component: 'aiHost/HostAccount.vue',
+                meta: {
+                    icon: SafetyOutlined,
+                    title: '托管账户',
                     isMenu: true,
                     keepAlive: true,
                     permission: '*',
