@@ -29,6 +29,7 @@ var Set = wire.NewSet(
 	wire.Struct(new(biz.Promotion), "*"),
 	wire.Struct(new(dal.MaterialVideo), "*"),
 	wire.Struct(new(biz.MaterialVideo), "*"),
+	wire.Struct(new(dal.PromotionMaterial), "*"),
 	wire.Struct(new(biz.Oceanengine), "*"),
 	wire.Struct(new(dal.DeleteUnauditedMaterial), "*"),
 	wire.Struct(new(biz.DeleteUnauditedMaterial), "*"),

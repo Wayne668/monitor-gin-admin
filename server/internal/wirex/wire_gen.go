@@ -127,12 +127,6 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	hostRule := &dal2.HostRule{
 		DB: db,
 	}
-	promotion := &dal2.Promotion{
-		DB: db,
-	}
-	materialVideo := &dal2.MaterialVideo{
-		DB: db,
-	}
 	deleteUnauditedMaterial := &dal2.DeleteUnauditedMaterial{
 		DB: db,
 	}
@@ -148,6 +142,12 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	hostAccount := &dal2.HostAccount{
 		DB: db,
 	}
+	promotionMaterial := &dal2.PromotionMaterial{
+		DB: db,
+	}
+	materialVideo := &dal2.MaterialVideo{
+		DB: db,
+	}
 
 	// === Shared Oceanengine instance with AgentTokenDAL ===
 	bizOceanengine := &biz2.Oceanengine{
@@ -155,18 +155,10 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	}
 
 	// === Business BIZ instances ===
-	bizPromotion := &biz2.Promotion{
-		PromotionDAL: promotion,
-		Oceanengine:  bizOceanengine,
-	}
-	bizMaterialVideo := &biz2.MaterialVideo{
-		MaterialVideoDAL: materialVideo,
-		Oceanengine:      bizOceanengine,
-	}
 	bizHostRule := &biz2.HostRule{
-		HostRuleDAL:      hostRule,
-		PromotionBIZ:     bizPromotion,
-		MaterialVideoBIZ: bizMaterialVideo,
+		HostRuleDAL:          hostRule,
+		PromotionMaterialDAL: promotionMaterial,
+		MaterialVideoDAL:     materialVideo,
 	}
 	bizHostField := &biz2.HostField{
 		HostFieldDAL: hostField,
@@ -181,10 +173,13 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		HostAccountDAL: hostAccount,
 	}
 	bizCrontab := &biz2.Crontab{
-		AccountInfo: accountInfo,
-		Oceanengine: bizOceanengine,
-		AgentToken:  agentToken,
-		HostRule:    hostRule,
+		AccountInfo:       accountInfo,
+		Oceanengine:       bizOceanengine,
+		AgentToken:        agentToken,
+		HostRule:          hostRule,
+		HostAccount:       hostAccount,
+		PromotionMaterial: promotionMaterial,
+		MaterialVideo:     materialVideo,
 	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,

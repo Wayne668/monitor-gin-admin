@@ -49,6 +49,18 @@ export default [
                             active: 'aiHost',
                         },
                     },
+                    {
+                        path: 'rule/log/:id',
+                        name: 'aiHostRuleLog',
+                        component: 'aiHost/RuleLog.vue',
+                        meta: {
+                            title: '运行记录',
+                            isMenu: false,
+                            keepAlive: false,
+                            permission: '*',
+                            active: 'aiHost',
+                        },
+                    },
                 ],
             },
             {

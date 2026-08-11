@@ -26,3 +26,11 @@ func (t *Crontab) HandleHostRule(c *gin.Context) {
 	}
 	util.ResSuccess(c, nil)
 }
+
+func (t *Crontab) SyncPromotionMaterial(c *gin.Context) {
+	if err := t.CrontabBIZ.SyncPromotionMaterial(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, nil)
+}

@@ -14,140 +14,106 @@
 
         <a-card>
             <a-table
+                :columns="columns"
                 :data-source="tableData"
                 :pagination="pagination"
-                :row-key="(record) => record.id">
-                <a-table-column
-                    type="checkbox"
-                    width="55" />
-                <a-table-column
-                    title="规则ID"
-                    data-index="id"
-                    :width="100" />
-                <a-table-column
-                    title="规则名称"
-                    data-index="name" />
-                <a-table-column
-                    title="应用场景"
-                    data-index="scene"
-                    :width="160" />
-                <a-table-column
-                    title="媒体"
-                    data-index="media"
-                    :width="120" />
-                <a-table-column
-                    title="托管目标"
-                    data-index="target"
-                    :width="100" />
-                <a-table-column
-                    title="状态"
-                    data-index="status"
-                    :width="100">
-                    <template #bodyCell="{ record }">
-                        <a-tag :color="record.status === '启用' ? 'success' : 'default'">
-                            {{ record.status }}
-                        </a-tag>
+                :row-key="(record) => record.id"
+                :loading="loading">
+                <template #bodyCell="{ column, record }">
+                    <template v-if="'status' === column.key">
+                        <a-switch
+                            :checked="record.status === 1"
+                            :loading="statusLoading[record.id]"
+                            checked-children="启用"
+                            un-checked-children="停用"
+                            @change="(val) => handleToggle(record, val)" />
                     </template>
-                </a-table-column>
-                <a-table-column
-                    title="操作"
-                    :width="200"
-                    fixed="right">
-                    <template #bodyCell="{ record }">
+                    <template v-if="'action' === column.key">
                         <a-button
                             type="link"
                             size="small"
-                            @click="handleEdit(record)">
-                            编辑
-                        </a-button>
-                        <a-button
-                            type="link"
-                            size="small"
-                            @click="handleToggle(record)">
-                            {{ record.status === '启用' ? '停用' : '启用' }}
-                        </a-button>
-                        <a-button
-                            type="link"
-                            danger
-                            size="small"
-                            @click="handleDelete(record)">
-                            删除
+                            @click="handleLog(record)">
+                            查看
                         </a-button>
                     </template>
-                </a-table-column>
+                </template>
             </a-table>
         </a-card>
     </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Modal, message } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
+import { getHostRuleList, updateHostRuleStatus } from '@/apis/modules/hostRule'
 
 const router = useRouter()
 
-const pagination = {
+const columns = [
+    { title: '规则ID', dataIndex: 'id', key: 'id', width: 100 },
+    { title: '规则名称', dataIndex: 'rule_name', key: 'rule_name' },
+    { title: '托管目标', dataIndex: 'target', key: 'target', width: 100 },
+    { title: '状态', key: 'status', width: 100 },
+    { title: '运行记录', key: 'action', width: 120, fixed: 'right' },
+]
+
+const loading = ref(false)
+const tableData = ref([])
+const statusLoading = reactive({})
+
+const pagination = reactive({
     current: 1,
     pageSize: 10,
     total: 0,
     showTotal: (total) => `共 ${total} 条`,
     showSizeChanger: true,
-}
+    onChange: (page, pageSize) => {
+        pagination.current = page
+        pagination.pageSize = pageSize
+        loadData()
+    },
+})
 
-const tableData = ref([
-    {
-        id: '001',
-        name: '广告止损规则-日常版',
-        scene: '广告止损',
-        media: '巨量广告2.0',
-        target: '广告',
-        status: '启用',
-    },
-    {
-        id: '002',
-        name: '预算优化-晚间投放',
-        scene: '自动化优化预算',
-        media: '巨量广告2.0',
-        target: '项目',
-        status: '停用',
-    },
-    {
-        id: '003',
-        name: '异常预警-成本超标',
-        scene: '异常预警',
-        media: '磁力智投',
-        target: '账户',
-        status: '启用',
-    },
-])
-pagination.total = tableData.value.length
+const loadData = async () => {
+    loading.value = true
+    try {
+        const res = await getHostRuleList({
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+        })
+        tableData.value = res.data || []
+        pagination.total = res.total || 0
+    } catch (e) {
+        message.error('加载失败')
+    } finally {
+        loading.value = false
+    }
+}
 
 const handleAdd = () => {
     router.push({ name: 'aiHostRuleForm' })
 }
 
-const handleEdit = (row) => {
-    router.push({ name: 'aiHostRuleEdit', params: { id: row.id } })
+const handleToggle = async (row, checked) => {
+    const newStatus = checked ? 1 : 2
+    statusLoading[row.id] = true
+    try {
+        await updateHostRuleStatus(row.id, { status: newStatus })
+        row.status = newStatus
+        message.success(checked ? '已启用' : '已停用')
+    } catch (e) {
+        message.error('操作失败')
+    } finally {
+        statusLoading[row.id] = false
+    }
 }
 
-const handleToggle = (row) => {
-    row.status = row.status === '启用' ? '停用' : '启用'
-    message.success(`已${row.status}`)
+const handleLog = (row) => {
+    router.push({ name: 'aiHostRuleLog', params: { id: row.id } })
 }
 
-const handleDelete = (row) => {
-    Modal.confirm({
-        title: '确认删除',
-        content: `确定删除规则「${row.name}」？`,
-        okType: 'danger',
-        okText: '确定',
-        cancelText: '取消',
-        onOk() {
-            tableData.value = tableData.value.filter((item) => item.id !== row.id)
-            pagination.total = tableData.value.length
-            message.success('删除成功')
-        },
-    })
-}
+onMounted(() => {
+    loadData()
+})
 </script>

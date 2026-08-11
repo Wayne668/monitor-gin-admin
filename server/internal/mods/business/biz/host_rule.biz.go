@@ -12,9 +12,9 @@ import (
 
 // HostRule 托管规则业务逻辑
 type HostRule struct {
-	HostRuleDAL      *dal.HostRule
-	PromotionBIZ     *Promotion
-	MaterialVideoBIZ *MaterialVideo
+	HostRuleDAL          *dal.HostRule
+	PromotionMaterialDAL *dal.PromotionMaterial
+	MaterialVideoDAL     *dal.MaterialVideo
 }
 
 // Query 查询托管规则列表
@@ -64,15 +64,10 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 		ids = append(ids, n)
 	}
 
-	agentID, err := strconv.ParseInt(req.AgentID, 10, 64)
-	if err != nil {
-		return nil, errors.BadRequest("", "无效的代理商ID: "+req.AgentID)
-	}
-
 	items := make([]schema.TargetItem, 0)
 	switch req.Target {
 	case "promotion":
-		promotions, err := a.PromotionBIZ.FindByAccountIDs(ctx, agentID, ids, []string{"id", "promotion_id", "promotion_name", "advertiser_id"})
+		promotions, err := a.PromotionMaterialDAL.FindPromotionsByAccountIDs(ctx, ids)
 		if err != nil {
 			return nil, err
 		}
@@ -83,14 +78,29 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 			})
 		}
 	case "creative":
-		materials, err := a.MaterialVideoBIZ.FindByAccountIDs(ctx, agentID, ids, []string{"id", "material_id", "file_name", "advertiser_id"})
+		materials, err := a.PromotionMaterialDAL.FindMaterialsByAccountIDs(ctx, ids)
 		if err != nil {
 			return nil, err
+		}
+		// 收集所有 material_id，批量查询 file_name
+		materialIDs := make([]int64, 0, len(materials))
+		for _, m := range materials {
+			materialIDs = append(materialIDs, m.MaterialID)
+		}
+		nameMap := make(map[int64]string)
+		if len(materialIDs) > 0 {
+			videos, err := a.MaterialVideoDAL.FindByMaterialIDs(ctx, materialIDs)
+			if err != nil {
+				return nil, err
+			}
+			for _, v := range videos {
+				nameMap[v.MaterialID] = v.FileName
+			}
 		}
 		for _, m := range materials {
 			items = append(items, schema.TargetItem{
 				ID:   strconv.FormatInt(m.MaterialID, 10),
-				Name: m.FileName,
+				Name: nameMap[m.MaterialID],
 			})
 		}
 	}

@@ -55,8 +55,8 @@ func (a *Promotion) FindByAccountIDs(ctx context.Context, agentID int64, account
 // FetchFromOceanengine 调用Oceanengine API拉取广告数据
 func (a *Promotion) FetchFromOceanengine(ctx context.Context, accountIDs []int64, agentID int64) ([]schema.Promotion, error) {
 	filtering := map[string]interface{}{
-		"status_first": schema.PromotionStatusEnable,
-		// "status_first": schema.PromotionStatusNotDelete,
+		// "status_first": schema.PromotionStatusEnable,
+		"status_first": schema.PromotionStatusNotDelete,
 	}
 	fields := []string{"promotion_id", "promotion_name", "status_first", "status_second", "opt_status"}
 

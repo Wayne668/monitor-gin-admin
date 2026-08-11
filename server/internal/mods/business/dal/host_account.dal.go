@@ -90,3 +90,13 @@ func (a *HostAccount) GetByAgentID(ctx context.Context, agentID int64) (schema.H
 	}
 	return list, nil
 }
+
+// FindAllEnabled 查询所有启用状态的托管账户
+func (a *HostAccount) FindAllEnabled(ctx context.Context) (schema.HostAccounts, error) {
+	var list schema.HostAccounts
+	result := GetHostAccountDB(ctx, a.DB).Where("status = ?", 1).Find(&list)
+	if result.Error != nil {
+		return nil, errors.WithStack(result.Error)
+	}
+	return list, nil
+}

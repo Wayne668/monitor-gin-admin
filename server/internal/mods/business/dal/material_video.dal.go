@@ -32,6 +32,39 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, accountIDs []int64
 	return list, nil
 }
 
+// FindByMaterialIDs 根据素材ID列表查询素材信息
+func (a *MaterialVideo) FindByMaterialIDs(ctx context.Context, materialIDs []int64) ([]schema.MaterialVideo, error) {
+	var list []schema.MaterialVideo
+	err := util.GetDB(ctx, a.DB).
+		Select("material_id, file_name").
+		Where("material_id IN ?", materialIDs).
+		Find(&list).Error
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return list, nil
+}
+
+// FindExistingMaterialIDs 返回 nb_material_video 中已存在的 material_id 集合
+func (a *MaterialVideo) FindExistingMaterialIDs(ctx context.Context, materialIDs []int64) (map[int64]bool, error) {
+	if len(materialIDs) == 0 {
+		return nil, nil
+	}
+	var list []schema.MaterialVideo
+	err := util.GetDB(ctx, a.DB).
+		Select("material_id").
+		Where("material_id IN ?", materialIDs).
+		Find(&list).Error
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	m := make(map[int64]bool, len(list))
+	for _, item := range list {
+		m[item.MaterialID] = true
+	}
+	return m, nil
+}
+
 // SaveBatch 批量保存视频素材数据
 func (a *MaterialVideo) SaveBatch(ctx context.Context, items []schema.MaterialVideo) error {
 	if len(items) == 0 {
