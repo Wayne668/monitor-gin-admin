@@ -9,10 +9,10 @@ type PromotionMaterial struct {
 	PromotionID    int64     `json:"promotionId" gorm:"column:promotion_id"`
 	PromotionName  string    `json:"promotionName" gorm:"column:promotion_name"`
 	StatusFirst    string    `json:"statusFirst" gorm:"column:status_first"`
-	StatusSecond   string    `json:"statusSecond" gorm:"column:status_second"`
 	OptStatus      string    `json:"optStatus" gorm:"column:opt_status"`
 	MaterialID     int64     `json:"materialId" gorm:"column:material_id"`
 	MaterialStatus string    `json:"materialStatus" gorm:"column:material_status"`
+	FileName       string    `json:"fileName" gorm:"->"` // JOIN nb_material_video 获取
 	CreatedAt      time.Time `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt      time.Time `json:"updatedAt" gorm:"column:updated_at"`
 }

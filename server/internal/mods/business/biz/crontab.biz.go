@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
-	"strings"
 	"time"
 )
 
@@ -196,7 +195,7 @@ func (s *Crontab) HandleHostRule() error {
 	return nil
 }
 
-func (s *Crontab) SyncPromotionMaterial() error {
+func (s *Crontab) SyncPromotionMaterial(agentID, advertiserID int64) error {
 	ctx := context.Background()
 
 	// 1. 查询 nb_host_account 表获取 status=1 的账户
@@ -204,19 +203,35 @@ func (s *Crontab) SyncPromotionMaterial() error {
 	if err != nil {
 		return fmt.Errorf("查询托管账户失败: %w", err)
 	}
+
+	// 根据参数过滤账户
+	if agentID > 0 || advertiserID > 0 {
+		var filtered schema.HostAccounts
+		for _, a := range accounts {
+			match := true
+			if agentID > 0 && a.AgentID != agentID {
+				match = false
+			}
+			if advertiserID > 0 && a.AdvertiserID != advertiserID {
+				match = false
+			}
+			if match {
+				filtered = append(filtered, a)
+			}
+		}
+		accounts = filtered
+	}
 	if len(accounts) == 0 {
-		fmt.Println("【SyncPromotionMaterial】没有启用的托管账户")
+		fmt.Println("【SyncPromotionMaterial】没有匹配的托管账户")
 		return nil
 	}
 
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}
-	fields := []string{"promotion_id", "promotion_materials", "advertiser_id", "promotion_name"}
+	fields := []string{"promotion_id", "promotion_materials", "advertiser_id", "promotion_name", "opt_status", "status_first"}
 
 	for _, account := range accounts {
-		fmt.Printf("【SyncPromotionMaterial】开始同步账户: agentID=%d, advertiserID=%d\n", account.AgentID, account.AdvertiserID)
-
 		// 2. 查询 promotion data
 		items, err := s.Oceanengine.GetRefPromotionData(ctx, account.AgentID, account.AdvertiserID, filtering, fields)
 		if err != nil {
@@ -226,29 +241,24 @@ func (s *Crontab) SyncPromotionMaterial() error {
 
 		// 收集所有 material_id 和 promotion_material 记录
 		var pmItems []schema.PromotionMaterial
-		var allMaterialIDs []int64
+		materialIDSet := make(map[int64]bool)
 
 		for _, item := range items {
 			if item.PromotionMaterials == nil {
 				continue
 			}
 			for _, videoMaterial := range item.PromotionMaterials.VideoMaterialList {
-				statusSecond := ""
-				if len(item.StatusSecond) > 0 {
-					statusSecond = strings.Join(item.StatusSecond, ",")
-				}
 				pm := schema.PromotionMaterial{
 					AdvertiserID:   account.AdvertiserID,
 					PromotionID:    item.PromotionId,
 					PromotionName:  item.PromotionName,
 					StatusFirst:    item.StatusFirst,
-					StatusSecond:   statusSecond,
 					OptStatus:      item.OptStatus,
 					MaterialStatus: videoMaterial.MaterialStatus,
 					MaterialID:     videoMaterial.MaterialID,
 				}
 				pmItems = append(pmItems, pm)
-				allMaterialIDs = append(allMaterialIDs, videoMaterial.MaterialID)
+				materialIDSet[videoMaterial.MaterialID] = true
 			}
 		}
 
@@ -262,9 +272,12 @@ func (s *Crontab) SyncPromotionMaterial() error {
 			fmt.Printf("【SyncPromotionMaterial】写入 nb_promotion_material 失败(advertiserID=%d): %v\n", account.AdvertiserID, err)
 			continue
 		}
-		fmt.Printf("【SyncPromotionMaterial】写入/更新 %d 条 promotion_material 记录\n", len(pmItems))
 
-		// 4. 对于 nb_promotion_material 中不存在的 material_id，调用 GetVideoMaterial 写入 nb_material_video
+		// 4. 对于 nb_material_video 中不存在的 material_id，调用 GetVideoMaterial 写入
+		allMaterialIDs := make([]int64, 0, len(materialIDSet))
+		for mid := range materialIDSet {
+			allMaterialIDs = append(allMaterialIDs, mid)
+		}
 		existingIDs, err := s.MaterialVideo.FindExistingMaterialIDs(ctx, allMaterialIDs)
 		if err != nil {
 			fmt.Printf("【SyncPromotionMaterial】查询已存在 material_id 失败: %v\n", err)
@@ -279,22 +292,33 @@ func (s *Crontab) SyncPromotionMaterial() error {
 		}
 
 		if len(newMaterialIDs) > 0 {
-			fmt.Printf("【SyncPromotionMaterial】账户 %d 有 %d 个新素材，拉取详情...\n", account.AdvertiserID, len(newMaterialIDs))
-			now := time.Now()
-			startDate := now.AddDate(0, 0, -30).Format("2006-01-02")
-			endDate := now.Format("2006-01-02")
+			// 分批拉取，单次最多 100 个
+			var allVideos []schema.MaterialVideo
+			batchSize := 100
+			for i := 0; i < len(newMaterialIDs); i += batchSize {
+				end := i + batchSize
+				if end > len(newMaterialIDs) {
+					end = len(newMaterialIDs)
+				}
+				batch := newMaterialIDs[i:end]
 
-			videos, err := s.Oceanengine.GetVideoMaterial(ctx, account.AgentID, account.AdvertiserID, startDate, endDate)
-			if err != nil {
-				fmt.Printf("【SyncPromotionMaterial】拉取视频素材失败(advertiserID=%d): %v\n", account.AdvertiserID, err)
-				continue
+				videoFiltering := map[string]interface{}{
+					"material_ids": batch,
+				}
+				videos, err := s.Oceanengine.GetVideoMaterial(ctx, account.AgentID, account.AdvertiserID, videoFiltering)
+				if err != nil {
+					fmt.Printf("【SyncPromotionMaterial】拉取视频素材失败(advertiserID=%d, batch=%d-%d): %v\n", account.AdvertiserID, i, end, err)
+					continue
+				}
+				allVideos = append(allVideos, videos...)
+				time.Sleep(100 * time.Millisecond)
 			}
 
-			if len(videos) > 0 {
-				if err := s.MaterialVideo.SaveBatch(ctx, videos); err != nil {
+			if len(allVideos) > 0 {
+				if err := s.MaterialVideo.SaveBatch(ctx, allVideos); err != nil {
 					fmt.Printf("【SyncPromotionMaterial】保存视频素材失败(advertiserID=%d): %v\n", account.AdvertiserID, err)
 				} else {
-					fmt.Printf("【SyncPromotionMaterial】保存 %d 条视频素材\n", len(videos))
+					fmt.Printf("【SyncPromotionMaterial】保存 %d 条视频素材\n", len(allVideos))
 				}
 			}
 		}

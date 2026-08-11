@@ -5,7 +5,6 @@ import "time"
 // MaterialVideo nb_material_video 表模型
 type MaterialVideo struct {
 	ID           uint      `json:"id" gorm:"primarykey;column:id"`
-	VideoID      string    `json:"videoId" gorm:"column:video_id"`
 	AdvertiserID int64     `json:"advertiserId" gorm:"column:advertiser_id"`
 	MaterialID   int64     `json:"materialId" gorm:"column:material_id"`
 	Signature    string    `json:"signature" gorm:"column:signature"`

@@ -14,7 +14,6 @@ import (
 type HostRule struct {
 	HostRuleDAL          *dal.HostRule
 	PromotionMaterialDAL *dal.PromotionMaterial
-	MaterialVideoDAL     *dal.MaterialVideo
 }
 
 // Query 查询托管规则列表
@@ -82,25 +81,10 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 		if err != nil {
 			return nil, err
 		}
-		// 收集所有 material_id，批量查询 file_name
-		materialIDs := make([]int64, 0, len(materials))
-		for _, m := range materials {
-			materialIDs = append(materialIDs, m.MaterialID)
-		}
-		nameMap := make(map[int64]string)
-		if len(materialIDs) > 0 {
-			videos, err := a.MaterialVideoDAL.FindByMaterialIDs(ctx, materialIDs)
-			if err != nil {
-				return nil, err
-			}
-			for _, v := range videos {
-				nameMap[v.MaterialID] = v.FileName
-			}
-		}
 		for _, m := range materials {
 			items = append(items, schema.TargetItem{
 				ID:   strconv.FormatInt(m.MaterialID, 10),
-				Name: nameMap[m.MaterialID],
+				Name: m.FileName,
 			})
 		}
 	}

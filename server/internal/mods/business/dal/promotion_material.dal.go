@@ -19,6 +19,7 @@ type PromotionMaterial struct {
 func (a *PromotionMaterial) FindPromotionsByAccountIDs(ctx context.Context, accountIDs []int64) ([]schema.PromotionMaterial, error) {
 	var list []schema.PromotionMaterial
 	db := util.GetDB(ctx, a.DB).
+		Select("promotion_id, ANY_VALUE(promotion_name) as promotion_name, ANY_VALUE(advertiser_id) as advertiser_id").
 		Where("advertiser_id IN ? AND status_first = ?", accountIDs, schema.PromotionStatusEnable).
 		Group("promotion_id")
 	err := db.Find(&list).Error
@@ -28,11 +29,15 @@ func (a *PromotionMaterial) FindPromotionsByAccountIDs(ctx context.Context, acco
 	return list, nil
 }
 
-// FindMaterialsByAccountIDs 根据账户ID列表查询素材状态正常的素材
+// FindMaterialsByAccountIDs 根据账户ID列表查询素材状态正常的素材（JOIN 获取 file_name）
 func (a *PromotionMaterial) FindMaterialsByAccountIDs(ctx context.Context, accountIDs []int64) ([]schema.PromotionMaterial, error) {
 	var list []schema.PromotionMaterial
 	db := util.GetDB(ctx, a.DB).
-		Where("advertiser_id IN ? AND material_status = ?", accountIDs, schema.MaterialStatusOK)
+		Table("nb_promotion_material pm").
+		Select("pm.material_id, ANY_VALUE(pm.advertiser_id) AS advertiser_id, ANY_VALUE(mv.file_name) AS file_name").
+		Joins("LEFT JOIN nb_material_video mv ON pm.material_id = mv.material_id").
+		Where("pm.advertiser_id IN ? AND pm.material_status = ?", accountIDs, schema.MaterialStatusOK).
+		Group("pm.material_id")
 	err := db.Find(&list).Error
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -60,7 +65,7 @@ func (a *PromotionMaterial) FindExistingMaterialIDs(ctx context.Context, materia
 	return m, nil
 }
 
-// UpsertBatch 批量 upsert（存在则更新，不存在则插入）
+// UpsertBatch 批量 upsert（唯一键：advertiser_id + promotion_id + material_id）
 func (a *PromotionMaterial) UpsertBatch(ctx context.Context, items []schema.PromotionMaterial) error {
 	if len(items) == 0 {
 		return nil
@@ -68,13 +73,14 @@ func (a *PromotionMaterial) UpsertBatch(ctx context.Context, items []schema.Prom
 	db := util.GetDB(ctx, a.DB)
 	for _, item := range items {
 		var existing schema.PromotionMaterial
-		err := db.Where("material_id = ?", item.MaterialID).First(&existing).Error
+		err := db.Where("advertiser_id = ? AND promotion_id = ? AND material_id = ?",
+			item.AdvertiserID, item.PromotionID, item.MaterialID).First(&existing).Error
 		if err == nil {
 			// 存在则更新
 			updateErr := db.Model(&existing).Updates(map[string]interface{}{
 				"status_first":    item.StatusFirst,
-				"status_second":   item.StatusSecond,
 				"material_status": item.MaterialStatus,
+				"opt_status":      item.OptStatus,
 			}).Error
 			if updateErr != nil {
 				return errors.WithStack(updateErr)

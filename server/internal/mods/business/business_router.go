@@ -29,6 +29,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 	{
 		crontab.POST("refresh-token", a.CrontabAPI.RefreshToken)
 		crontab.POST("handle-host-rule", a.CrontabAPI.HandleHostRule)
+		crontab.GET("sync-promotion-material", a.CrontabAPI.SyncPromotionMaterial)
 	}
 
 	hostRule := v1.Group("host-rules")

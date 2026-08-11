@@ -109,11 +109,9 @@ type ADVideoListData struct {
 }
 
 type ADVideoItem struct {
-	VideoID    string   `json:"video_id"`
 	MaterialID int64    `json:"material_id"`
 	Signature  string   `json:"signature"`
-	FileName   string   `json:"file_name"`
-	VideoURL   string   `json:"video_url"`
+	Filename   string   `json:"filename"`
 	PosterURL  string   `json:"poster_url"`
 	Labels     []string `json:"labels"`
 	Size       int      `json:"size"`
@@ -122,6 +120,7 @@ type ADVideoItem struct {
 	CreateTime string   `json:"create_time"`
 	Width      int      `json:"width"`
 	Height     int      `json:"height"`
+	Url        string   `json:"url"`
 }
 
 type VideoListPageInfo struct {

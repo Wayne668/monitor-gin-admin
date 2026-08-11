@@ -41,8 +41,14 @@ func (a *MaterialVideo) FindByAccountIDs(ctx context.Context, agentID int64, acc
 			startDate = lastUpdatedAt.Format("2006-01-02")
 			apiEndDate = endDate
 		}
+
+		filtering := map[string]interface{}{
+			"start_time": startDate,
+			"end_time":   apiEndDate,
+		}
+
 		// 无记录：startDate="" endDate="" 全量拉取
-		items, err := a.Oceanengine.GetVideoMaterial(ctx, agentID, advertiserID, startDate, apiEndDate)
+		items, err := a.Oceanengine.GetVideoMaterial(ctx, agentID, advertiserID, filtering)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 视频素材失败: %w", advertiserID, err)
 		}

@@ -158,7 +158,6 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	bizHostRule := &biz2.HostRule{
 		HostRuleDAL:          hostRule,
 		PromotionMaterialDAL: promotionMaterial,
-		MaterialVideoDAL:     materialVideo,
 	}
 	bizHostField := &biz2.HostField{
 		HostFieldDAL: hostField,

@@ -233,7 +233,7 @@ func (o *Oceanengine) GetRefPromotionData(ctx context.Context, agentID int64, ad
 	return allList, nil
 }
 
-func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, advertiserId int64, startDate, endDate string) ([]schema.MaterialVideo, error) {
+func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, advertiserId int64, filtering map[string]interface{}) ([]schema.MaterialVideo, error) {
 	accessToken, err := o.getAccessToken(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -242,11 +242,8 @@ func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, adv
 	pageSize := 50
 	req := map[string]interface{}{
 		"advertiser_id": advertiserId,
-		"filtering": map[string]string{
-			"start_time": startDate,
-			"end_time":   endDate,
-		},
-		"page_size": pageSize,
+		"filtering":     filtering,
+		"page_size":     pageSize,
 	}
 
 	page := 1
@@ -275,11 +272,10 @@ func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, adv
 			}
 
 			info := schema.MaterialVideo{
-				VideoID:      item.VideoID,
 				AdvertiserID: advertiserId,
 				MaterialID:   item.MaterialID,
 				Signature:    item.Signature,
-				FileName:     item.FileName,
+				FileName:     item.Filename,
 				PosterURL:    item.PosterURL,
 				Labels:       labels,
 			}
@@ -302,7 +298,7 @@ func (o *Oceanengine) GetVideoMaterial(ctx context.Context, accountID int64, adv
 }
 
 // getADVideoTempUrl 获取AD视频临时URL：保存到浏览器本地缓存
-func (o *Oceanengine) GetADVideoTempUrl(ctx context.Context, accountID int64, videoIds []string, advertiserId int64) (map[string]string, error) {
+func (o *Oceanengine) GetADVideoTempUrl(ctx context.Context, accountID int64, materialIDs []int64, advertiserId int64) (map[string]string, error) {
 	accessToken, err := o.getAccessToken(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -312,7 +308,7 @@ func (o *Oceanengine) GetADVideoTempUrl(ctx context.Context, accountID int64, vi
 	req := map[string]interface{}{
 		"advertiser_id": advertiserId,
 		"filtering": map[string]interface{}{
-			"video_ids": videoIds,
+			"material_ids": materialIDs,
 		},
 		"page":      1,
 		"page_size": 100,
@@ -328,8 +324,8 @@ func (o *Oceanengine) GetADVideoTempUrl(ctx context.Context, accountID int64, vi
 		return nil, fmt.Errorf("AD视频URL返回错误: code=%d msg=%s", resp.Code, resp.Message)
 	}
 	for _, item := range resp.Data.List {
-		if item.VideoURL != "" {
-			result[item.VideoID] = item.VideoURL
+		if item.Url != "" {
+			result[item.Filename] = item.Url
 		}
 	}
 	return result, nil
