@@ -54,17 +54,6 @@ func (a *DeleteUnauditedMaterial) Get(c *gin.Context) {
 // GetUnAudititedMaterial 获取未审核素材列表
 func (a *DeleteUnauditedMaterial) GetUnAudititedMaterial(c *gin.Context) {
 	ctx := c.Request.Context()
-	accountIDStr := c.Query("accountId")
-	if accountIDStr == "" {
-		util.ResError(c, errors.BadRequest("", "accountId is required"))
-		return
-	}
-	accountID, err := strconv.ParseInt(accountIDStr, 10, 64)
-	if err != nil {
-		util.ResError(c, errors.BadRequest("", "invalid accountId"))
-		return
-	}
-
 	accountIDsStr := c.Query("accountIds")
 	if accountIDsStr == "" {
 		util.ResError(c, errors.BadRequest("", "accountIds is required"))
@@ -82,7 +71,7 @@ func (a *DeleteUnauditedMaterial) GetUnAudititedMaterial(c *gin.Context) {
 		accountIDs = append(accountIDs, id)
 	}
 
-	items, err := a.DeleteUnauditedMaterialBIZ.FetchUnauditedMaterial(ctx, accountID, accountIDs)
+	items, err := a.DeleteUnauditedMaterialBIZ.GetUnAudititedMaterial(ctx, accountIDs)
 	if err != nil {
 		util.ResError(c, err)
 		return

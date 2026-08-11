@@ -23,3 +23,6 @@ func (PromotionMaterial) TableName() string {
 
 // MaterialStatusOK 素材状态正常
 const MaterialStatusOK = "MATERIAL_STATUS_OK"
+
+// MaterialStatusOfflineAudit 素材状态：未审核下线
+const MaterialStatusOfflineAudit = "MATERIAL_STATUS_OFFLINE_AUDIT"

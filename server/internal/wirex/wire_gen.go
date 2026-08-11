@@ -183,6 +183,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,
 		Oceanengine:                bizOceanengine,
+		PromotionMaterialDAL:       promotionMaterial,
 	}
 
 	// === API instances ===

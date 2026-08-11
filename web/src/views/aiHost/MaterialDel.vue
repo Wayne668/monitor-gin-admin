@@ -75,7 +75,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getDeleteUnauditedMaterialList, retryFailedDelete } from '@/apis/modules/deleteUnauditedMaterial'
+import { getDeleteUnauditedMaterialList, retryFailedDelete } from '@/apis/modules/delUnitMaterial'
 import { getAgentTokenList } from '@/apis/modules/agentToken'
 
 const router = useRouter()

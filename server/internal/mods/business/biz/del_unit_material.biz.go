@@ -14,6 +14,7 @@ import (
 type DeleteUnauditedMaterial struct {
 	DeleteUnauditedMaterialDAL *dal.DeleteUnauditedMaterial
 	Oceanengine                *Oceanengine
+	PromotionMaterialDAL       *dal.PromotionMaterial
 }
 
 // Query 查询素材删除记录列表
@@ -73,6 +74,11 @@ func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, ac
 	return result, nil
 }
 
+// GetUnAudititedMaterial 直接查询 nb_promotion_material 获取未审核素材
+func (a *DeleteUnauditedMaterial) GetUnAudititedMaterial(ctx context.Context, accountIDs []int64) ([]schema.PromotionMaterial, error) {
+	return a.PromotionMaterialDAL.FindMaterialsByAccountIDs(ctx, accountIDs, schema.MaterialStatusOfflineAudit)
+}
+
 // DeleteAndSave 删除素材并保存记录
 func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema.UnAudititedMaterialReq) error {
 	for _, m := range req.Materials {
@@ -80,6 +86,7 @@ func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema
 			MaterialID:   m.MaterialID,
 			AdvertiserID: m.AdvertiserID,
 			PromotionID:  m.PromotionID,
+			MaterialName: m.MaterialName,
 			IsDeleted:    "pending",
 		}
 

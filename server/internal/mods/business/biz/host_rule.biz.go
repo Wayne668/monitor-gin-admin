@@ -77,7 +77,7 @@ func (a *HostRule) GetTargetsByAccount(ctx context.Context, req *schema.TargetBy
 			})
 		}
 	case "creative":
-		materials, err := a.PromotionMaterialDAL.FindMaterialsByAccountIDs(ctx, ids)
+		materials, err := a.PromotionMaterialDAL.FindMaterialsByAccountIDs(ctx, ids, schema.MaterialStatusOK)
 		if err != nil {
 			return nil, err
 		}

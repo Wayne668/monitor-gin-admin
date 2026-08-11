@@ -53,13 +53,14 @@ type DeleteUnauditedMaterials []*DeleteUnauditedMaterial
 
 // UnAudititedMaterialItem 未审核素材项
 type UnAudititedMaterialItem struct {
-	MaterialID   int64 `json:"materialId"`
-	PromotionID  int64 `json:"promotionId"`
-	AdvertiserID int64 `json:"advertiserId"`
+	MaterialID   int64  `json:"materialId"`
+	PromotionID  int64  `json:"promotionId"`
+	AdvertiserID int64  `json:"advertiserId"`
+	MaterialName string `json:"materialName"`
 }
 
 // UnAudititedMaterialReq 删除未审核素材请求
 type UnAudititedMaterialReq struct {
-	AccountID  int64                      `json:"accountId"`
-	Materials  []UnAudititedMaterialItem  `json:"materials"`
+	AccountID int64                     `json:"accountId"`
+	Materials []UnAudititedMaterialItem `json:"materials"`
 }

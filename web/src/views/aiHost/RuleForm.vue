@@ -77,7 +77,6 @@
                 name="selectedAccountIds">
                 <AccountTransfer
                     v-model="form.selectedAccountIds"
-                    :options="accountOptions"
                     :target="form.target"
                     :scope-type="form.scopeType"
                     :agent-id="form.selectedAgentId"
@@ -231,7 +230,6 @@ import { message } from 'ant-design-vue'
 import ConditionBuilder from './components/ConditionBuilder.vue'
 import AccountTransfer from './components/AccountTransfer.vue'
 import TargetTransfer from './components/TargetTransfer.vue'
-import { getEnabledAccountList } from '@/apis/modules/accountInfo'
 import { getAgentTokenList } from '@/apis/modules/agentToken'
 import { saveHostRule } from '@/apis/modules/hostRule'
 
@@ -300,7 +298,6 @@ const showTargetTransfer = computed(() => {
     return (form.target === 'promotion' || form.target === 'creative') && needTargetSelect.value
 })
 
-const accountOptions = ref([])
 const agentTokenOptions = ref([])
 
 const loadAgentTokens = async () => {
@@ -315,21 +312,7 @@ const loadAgentTokens = async () => {
     }
 }
 
-const loadAccounts = async () => {
-    try {
-        // 只取下拉所需字段，减少传输量；limit 使用后端默认（最新 100 条）
-        const res = await getEnabledAccountList({ fields: 'advertiser_id,advertiser_name' })
-        accountOptions.value = (res.data || []).map((item) => ({
-            id: String(item.advertiserId),
-            name: item.advertiserName,
-        }))
-    } catch (e) {
-        message.error('加载账户列表失败')
-    }
-}
-
 onMounted(() => {
-    loadAccounts()
     loadAgentTokens()
 })
 

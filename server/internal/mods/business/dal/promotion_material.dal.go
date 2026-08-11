@@ -30,11 +30,11 @@ func (a *PromotionMaterial) FindPromotionsByAccountIDs(ctx context.Context, acco
 }
 
 // FindMaterialsByAccountIDs 根据账户ID列表查询素材状态正常的素材（JOIN 获取 file_name）
-func (a *PromotionMaterial) FindMaterialsByAccountIDs(ctx context.Context, accountIDs []int64) ([]schema.PromotionMaterial, error) {
+func (a *PromotionMaterial) FindMaterialsByAccountIDs(ctx context.Context, accountIDs []int64, materialStatus string) ([]schema.PromotionMaterial, error) {
 	var list []schema.PromotionMaterial
 	db := util.GetDB(ctx, a.DB).
 		Table("nb_promotion_material pm").
-		Select("pm.material_id, ANY_VALUE(pm.advertiser_id) AS advertiser_id, ANY_VALUE(mv.file_name) AS file_name").
+		Select("pm.material_id, ANY_VALUE(pm.advertiser_id) AS advertiser_id, ANY_VALUE(mv.file_name) AS file_name, ANY_VALUE(pm.promotion_id) AS promotion_id").
 		Joins("LEFT JOIN nb_material_video mv ON pm.material_id = mv.material_id").
 		Where("pm.advertiser_id IN ? AND pm.material_status = ?", accountIDs, schema.MaterialStatusOK).
 		Group("pm.material_id")

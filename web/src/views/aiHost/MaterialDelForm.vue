@@ -14,10 +14,22 @@
         <!-- 上半部分：账户选择 -->
         <a-card title="选择账户" style="margin-bottom: 16px">
             <div style="display: flex; flex-direction: column; gap: 12px">
+                <a-form-item
+                    label="代理商账户"
+                    style="margin-bottom: 0">
+                    <a-select
+                        v-model:value="selectedAgentId"
+                        placeholder="请选择代理商账户"
+                        style="max-width: 400px"
+                        :options="agentTokenOptions"
+                        allow-clear
+                        @change="handleAgentChange" />
+                </a-form-item>
                 <AccountTransfer
-                    :options="accountOptions"
                     v-model="selectedAccountIds"
-                    target="account" />
+                    target="account"
+                    :agent-id="selectedAgentId"
+                    :disabled="!selectedAgentId" />
                 <div style="text-align: right">
                     <a-button
                         type="primary"
@@ -75,8 +87,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Modal, message } from 'ant-design-vue'
-import { getEnabledAccountList } from '@/apis/modules/accountInfo'
-import { getUnauditedMaterial, deleteUnauditedMaterial } from '@/apis/modules/hostRule'
+import { getAgentTokenList } from '@/apis/modules/agentToken'
+import { getUnauditedMaterial, deleteUnauditedMaterial } from '@/apis/modules/delUnitMaterial'
 import AccountTransfer from './components/AccountTransfer.vue'
 
 const columns = [
@@ -86,23 +98,28 @@ const columns = [
     { title: '广告主ID', dataIndex: 'advertiserId', key: 'advertiserId', width: 120 },
 ]
 
-const accountOptions = ref([])
+const selectedAgentId = ref(undefined)
+const agentTokenOptions = ref([])
 const selectedAccountIds = ref([])
 const tableData = ref([])
 const selectedRowKeys = ref([])
 const materialLoading = ref(false)
 const deleting = ref(false)
 
-const loadAccounts = async () => {
+const loadAgentTokens = async () => {
     try {
-        const res = await getEnabledAccountList({ fields: 'advertiser_id,advertiser_name' })
-        accountOptions.value = (res.data || []).map((item) => ({
-            id: item.advertiserId,
-            name: item.advertiserName || String(item.advertiserId),
+        const res = await getAgentTokenList({ pageSize: 100 })
+        agentTokenOptions.value = (res.data || []).map((item) => ({
+            label: `${item.accountName} (${item.accountId})`,
+            value: item.accountId,
         }))
     } catch (e) {
-        message.error('加载账户列表失败')
+        message.error('加载代理商账户失败')
     }
+}
+
+const handleAgentChange = () => {
+    selectedAccountIds.value = []
 }
 
 const handleLoadMaterials = async () => {
@@ -149,6 +166,7 @@ const handleBatchDelete = () => {
                         materialId: r.materialId,
                         promotionId: r.promotionId,
                         advertiserId: r.advertiserId,
+                        materialName: r.materialName,
                     })),
                 }
                 await deleteUnauditedMaterial(params)
@@ -165,6 +183,6 @@ const handleBatchDelete = () => {
 }
 
 onMounted(() => {
-    loadAccounts()
+    loadAgentTokens()
 })
 </script>
