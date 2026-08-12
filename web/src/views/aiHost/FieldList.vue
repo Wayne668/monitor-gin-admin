@@ -30,6 +30,12 @@
                             {{ record.stash === 1 ? '可恢复' : '不可恢复' }}
                         </a-tag>
                     </template>
+                    <template v-if="'status' === column.key">
+                        <a-switch
+                            :checked="record.status === 1"
+                            :loading="statusLoading[record.id]"
+                            @change="(val) => handleStatusChange(record, val)" />
+                    </template>
                     <template v-if="'action' === column.key">
                         <a-button
                             type="link"
@@ -55,7 +61,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
-import { getHostFieldList, delHostField } from '@/apis/modules/hostField'
+import { getHostFieldList, delHostField, updateHostField } from '@/apis/modules/hostField'
 
 const router = useRouter()
 
@@ -67,11 +73,13 @@ const columns = [
     { title: '可恢复', dataIndex: 'stash', key: 'stash', width: 100 },
     { title: '单位', dataIndex: 'unit', key: 'unit', width: 80 },
     { title: '公式', dataIndex: 'formula', key: 'formula' },
+    { title: '开启', dataIndex: 'status', key: 'status', width: 80 },
     { title: '操作', key: 'action', width: 200, fixed: 'right' },
 ]
 
 const loading = ref(false)
 const tableData = ref([])
+const statusLoading = reactive({})
 
 const pagination = reactive({
     current: 1,
@@ -108,6 +116,19 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
     router.push({ name: 'hostFieldEdit', params: { id: row.id } })
+}
+
+const handleStatusChange = async (row, checked) => {
+    statusLoading[row.id] = true
+    try {
+        await updateHostField(row.id, { ...row, status: checked ? 1 : 0 })
+        row.status = checked ? 1 : 0
+        message.success(checked ? '已开启' : '已关闭')
+    } catch (e) {
+        message.error('操作失败')
+    } finally {
+        statusLoading[row.id] = false
+    }
 }
 
 const handleDelete = (row) => {

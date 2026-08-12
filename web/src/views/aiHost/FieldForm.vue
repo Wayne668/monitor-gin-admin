@@ -63,6 +63,13 @@
                         placeholder="请输入公式"
                         :rows="3" />
                 </a-form-item>
+                <a-form-item
+                    label="开启"
+                    name="status">
+                    <a-switch
+                        :checked="form.status === 1"
+                        @change="(val) => (form.status = val ? 1 : 0)" />
+                </a-form-item>
                 <a-form-item>
                     <a-button
                         type="primary"
@@ -101,6 +108,7 @@ const form = reactive({
     stash: undefined,
     unit: '',
     formula: '',
+    status: 1,
 })
 
 const rules = {
