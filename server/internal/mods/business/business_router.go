@@ -18,6 +18,7 @@ type Business struct {
 	AgentTokenAPI              *api.AgentToken
 	DeleteUnauditedMaterialAPI *api.DeleteUnauditedMaterial
 	CrontabAPI                 *api.Crontab
+	HostTriggerRecordAPI       *api.HostTriggerRecord
 }
 
 func (a *Business) Init(ctx context.Context) error {
@@ -80,6 +81,11 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 	{
 		deleteMaterial.GET("", a.DeleteUnauditedMaterialAPI.Query)
 		deleteMaterial.GET(":id", a.DeleteUnauditedMaterialAPI.Get)
+	}
+
+	hostTriggerRecord := v1.Group("host-trigger-records")
+	{
+		hostTriggerRecord.GET("", a.HostTriggerRecordAPI.Query)
 	}
 
 	return nil

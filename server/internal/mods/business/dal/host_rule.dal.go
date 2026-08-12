@@ -11,7 +11,7 @@ import (
 )
 
 func GetHostRuleDB(ctx context.Context, defDB *gorm.DB) *gorm.DB {
-	return util.GetDB(ctx, defDB).Model(new(schema.HostRule))
+	return util.GetDB(ctx, defDB).Model(new(schema.HostRule)).Select("nb_host_rule.*, nb_user.name AS user_name").Joins("LEFT JOIN nb_user ON nb_host_rule.userid = nb_user.id")
 }
 
 // HostRule 托管规则数据访问

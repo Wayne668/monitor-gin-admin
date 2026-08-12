@@ -127,3 +127,27 @@ func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs
 
 	return list, nil
 }
+
+// IsPromotionInTargetStatus 检查推广是否已处于目标状态
+func (a *PromotionMaterial) IsPromotionInTargetStatus(ctx context.Context, advertiserID int64, promotionID int64, targetStatus string) (bool, error) {
+	var count int64
+	err := util.GetDB(ctx, a.DB).Model(new(schema.PromotionMaterial)).
+		Where("advertiser_id = ? AND promotion_id = ? AND opt_status = ?", advertiserID, promotionID, targetStatus).
+		Count(&count).Error
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+	return count > 0, nil
+}
+
+// IsMaterialInTargetStatus 检查素材是否已处于目标状态
+func (a *PromotionMaterial) IsMaterialInTargetStatus(ctx context.Context, advertiserID int64, materialID int64, targetStatus string) (bool, error) {
+	var count int64
+	err := util.GetDB(ctx, a.DB).Model(new(schema.PromotionMaterial)).
+		Where("advertiser_id = ? AND material_id = ? AND material_status = ?", advertiserID, materialID, targetStatus).
+		Count(&count).Error
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+	return count > 0, nil
+}

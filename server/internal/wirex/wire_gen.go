@@ -148,6 +148,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	materialVideo := &dal2.MaterialVideo{
 		DB: db,
 	}
+	hostTriggerRecord := &dal2.HostTriggerRecord{
+		DB: db,
+	}
 
 	// === Shared Oceanengine instance with AgentTokenDAL ===
 	bizOceanengine := &biz2.Oceanengine{
@@ -179,11 +182,15 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		HostAccount:       hostAccount,
 		PromotionMaterial: promotionMaterial,
 		MaterialVideo:     materialVideo,
+		HostTriggerRecord: hostTriggerRecord,
 	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,
 		Oceanengine:                bizOceanengine,
 		PromotionMaterialDAL:       promotionMaterial,
+	}
+	bizHostTriggerRecord := &biz2.HostTriggerRecord{
+		HostTriggerRecordDAL: hostTriggerRecord,
 	}
 
 	// === API instances ===
@@ -209,6 +216,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiDeleteUnauditedMaterial := &api2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialBIZ: bizDeleteUnauditedMaterial,
 	}
+	apiHostTriggerRecord := &api2.HostTriggerRecord{
+		HostTriggerRecordBIZ: bizHostTriggerRecord,
+	}
 	businessBusiness := &business.Business{
 		DB:                         db,
 		HostRuleAPI:                apiHostRule,
@@ -218,6 +228,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		AgentTokenAPI:              apiAgentToken,
 		DeleteUnauditedMaterialAPI: apiDeleteUnauditedMaterial,
 		CrontabAPI:                 apiCrontab,
+		HostTriggerRecordAPI:       apiHostTriggerRecord,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

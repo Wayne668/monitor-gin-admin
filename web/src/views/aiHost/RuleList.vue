@@ -20,6 +20,15 @@
                 :row-key="(record) => record.id"
                 :loading="loading">
                 <template #bodyCell="{ column, record }">
+                    <template v-if="'date_range' === column.key">
+                        <span>{{ record.trigger_start_date }} ~ {{ record.trigger_end_date }}</span>
+                    </template>
+                    <template v-if="'target_accounts' === column.key">
+                        <span>{{ formatJsonArray(record.target_accounts) }}</span>
+                    </template>
+                    <template v-if="'target_obj' === column.key">
+                        <span>{{ getTargetObj(record) }}</span>
+                    </template>
                     <template v-if="'status' === column.key">
                         <a-switch
                             :checked="record.status === 1"
@@ -51,11 +60,16 @@ import { getHostRuleList, updateHostRuleStatus } from '@/apis/modules/hostRule'
 const router = useRouter()
 
 const columns = [
-    { title: '规则ID', dataIndex: 'id', key: 'id', width: 100 },
-    { title: '规则名称', dataIndex: 'rule_name', key: 'rule_name' },
+    { title: '规则ID', dataIndex: 'id', key: 'id', width: 80 },
+    { title: '规则名称', dataIndex: 'rule_name', key: 'rule_name', width: 150 },
     { title: '托管目标', dataIndex: 'target', key: 'target', width: 100 },
-    { title: '状态', key: 'status', width: 100 },
-    { title: '运行记录', key: 'action', width: 120, fixed: 'right' },
+    { title: '生效日期', key: 'date_range', width: 200 },
+    { title: '创建人', dataIndex: 'user_name', key: 'user_name', width: 100 },
+    { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 170 },
+    { title: '托管账户', dataIndex: 'target_accounts', key: 'target_accounts', width: 150 },
+    { title: '托管对象', key: 'target_obj', width: 150 },
+    { title: '状态', key: 'status', width: 80 },
+    { title: '运行记录', key: 'action', width: 100, fixed: 'right' },
 ]
 
 const loading = ref(false)
@@ -110,7 +124,30 @@ const handleToggle = async (row, checked) => {
 }
 
 const handleLog = (row) => {
-    router.push({ name: 'aiHostRuleLog', params: { id: row.id } })
+    router.push({ name: 'aiHostTriggerRecord', query: { ruleId: row.id } })
+}
+
+const formatJsonArray = (str) => {
+    if (!str) return '-'
+    try {
+        const arr = JSON.parse(str)
+        return Array.isArray(arr) ? arr.join(', ') : str
+    } catch {
+        return str
+    }
+}
+
+const getTargetObj = (row) => {
+    switch (row.target) {
+        case 'promotion':
+            return formatJsonArray(row.target_promotion)
+        case 'creative':
+            return formatJsonArray(row.target_material)
+        case 'project':
+            return formatJsonArray(row.target_projects)
+        default:
+            return '-'
+    }
 }
 
 onMounted(() => {

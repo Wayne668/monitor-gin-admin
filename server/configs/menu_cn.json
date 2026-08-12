@@ -289,6 +289,14 @@
                         "type": "page",
                         "path": "/tools/aiHost/rule/edit/:id",
                         "status": "enabled"
+                    },
+                    {
+                        "code": "aiHostTriggerRecord",
+                        "name": "托管触发记录",
+                        "sequence": 5,
+                        "type": "page",
+                        "path": "/tools/aiHost/trigger-record",
+                        "status": "enabled"
                     }
                 ]
             },

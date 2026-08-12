@@ -61,6 +61,18 @@ export default [
                             active: 'aiHost',
                         },
                     },
+                    {
+                        path: 'trigger-record',
+                        name: 'aiHostTriggerRecord',
+                        component: 'aiHost/TriggerRecordList.vue',
+                        meta: {
+                            title: '托管触发记录',
+                            isMenu: false,
+                            keepAlive: false,
+                            permission: '*',
+                            active: 'aiHost',
+                        },
+                    },
                 ],
             },
             {

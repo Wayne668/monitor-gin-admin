@@ -10,6 +10,7 @@ import (
 
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
+	"monitor-gin-admin/pkg/util"
 )
 
 type Crontab struct {
@@ -20,6 +21,7 @@ type Crontab struct {
 	HostAccount       *dal.HostAccount
 	PromotionMaterial *dal.PromotionMaterial
 	MaterialVideo     *dal.MaterialVideo
+	HostTriggerRecord *dal.HostTriggerRecord
 }
 
 func (s *Crontab) SyncAccounts(ctx context.Context, accountID int64, StartDate, EndDate string) error {
@@ -149,14 +151,14 @@ func (s *Crontab) HandleHostRule() error {
 		}
 
 		type conditionItem struct {
-			Metric   string `json:"metric"`
-			Operator string `json:"operator"`
-			Time     string `json:"time"`
-			Unit     string `json:"unit"`
-			Value    int64  `json:"value"`
+			Metric   string  `json:"metric"`
+			Operator string  `json:"operator"`
+			Time     string  `json:"time"`
+			Unit     string  `json:"unit"`
+			Value    float64 `json:"value"`
 		}
 		// 解析 trigger_condition JSON 为 CustomReportReq
-		// {"conditions":[{"metric":"stat_cost","operator":"\u003c","time":"today","unit":"元","value":20}],"logic":"and"}
+		// {"conditions":[{"metric":"stat_cost","operator":"\u003c","time":"today","unit":"元","value":20}]}
 		var timeRange schema.TimeFiltering
 		if strings.Contains(rule.TriggerCondition, "last_7days") {
 			timeRange = schema.TimeFiltering{
@@ -183,7 +185,6 @@ func (s *Crontab) HandleHostRule() error {
 		}
 
 		var triggerCondition struct {
-			Logic      string          `json:"logic"`
 			Conditions []conditionItem `json:"conditions"`
 		}
 
@@ -220,6 +221,11 @@ func (s *Crontab) HandleHostRule() error {
 					CreateEndTime:   now.Format("2006-01-02"),
 				}
 			}
+		}
+
+		// 必须要包含stat_cost，添加到metrics中
+		if !strings.Contains(rule.TriggerCondition, "stat_cost") {
+			metrics = append(metrics, "stat_cost")
 		}
 
 		// 解析 TargetAccounts JSON 获取 account IDs
@@ -348,9 +354,24 @@ func (s *Crontab) HandleHostRule() error {
 				continue
 			}
 
-			// 聚合每个metric的数据，仅在stat_time_day处于metricTime区间内累加
-			metricTotals := make(map[string]float64)
+			// 确定维度中用于区分目标的key
+			targetDimKey := "cdp_promotion_id"
+			if rule.Target == "creative" {
+				targetDimKey = "material_id"
+			} else {
+				targetDimKey = "cdp_project_id"
+			}
+
+			// 按目标分别聚合每个metric的数据，仅在stat_time_day处于metricTime区间内累加
+			targetMetrics := make(map[string]map[string]float64) // targetID -> metric -> total
 			for _, row := range allRows {
+				targetID, _ := row.Dimensions[targetDimKey].(string)
+				if targetID == "" {
+					continue
+				}
+				if _, ok := targetMetrics[targetID]; !ok {
+					targetMetrics[targetID] = make(map[string]float64)
+				}
 				statDay, _ := row.Dimensions["stat_time_day"].(string)
 				for _, condition := range triggerCondition.Conditions {
 					// 检查stat_time_day是否在metric时间区间内
@@ -366,43 +387,67 @@ func (s *Crontab) HandleHostRule() error {
 					}
 					switch v := val.(type) {
 					case float64:
-						metricTotals[condition.Metric] += v
+						targetMetrics[targetID][condition.Metric] += v
 					case json.Number:
 						if f, err := v.Float64(); err == nil {
-							metricTotals[condition.Metric] += f
+							targetMetrics[targetID][condition.Metric] += f
 						}
 					case string:
 						if f, err := strconv.ParseFloat(v, 64); err == nil {
-							metricTotals[condition.Metric] += f
+							targetMetrics[targetID][condition.Metric] += f
 						}
 					}
 				}
 			}
 
-			// 根据logic比较聚合结果：or任一满足即预警，and全部满足才预警
-			triggered := false
-			if triggerCondition.Logic == "or" {
-				for _, condition := range triggerCondition.Conditions {
-					total := metricTotals[condition.Metric]
-					if compareValue(total, condition.Operator, float64(condition.Value)) {
-						triggered = true
-						break
+			// 根据logic比较每个目标的聚合结果
+			for targetID, metricTotals := range targetMetrics {
+				targetTriggered := false
+				triggerReason := ""
+				if rule.OperateMethod == 1 { // or
+					for _, condition := range triggerCondition.Conditions {
+						total := metricTotals[condition.Metric]
+						if compareValue(total, condition.Operator, float64(condition.Value)) {
+							targetTriggered = true
+							triggerReason = fmt.Sprintf("%s %s(%f) %s %f", condition.Time, condition.Metric, total, condition.Operator, condition.Value)
+							break
+						}
+					}
+				} else { // "and"
+					targetTriggered = true
+					for _, condition := range triggerCondition.Conditions {
+						total := metricTotals[condition.Metric]
+						if !compareValue(total, condition.Operator, float64(condition.Value)) {
+							targetTriggered = false
+							triggerReason = fmt.Sprintf("%s %s(%f) %s %f", condition.Time, condition.Metric, total, condition.Operator, condition.Value)
+							break
+						}
 					}
 				}
-			} else { // "and"
-				triggered = true
-				for _, condition := range triggerCondition.Conditions {
-					total := metricTotals[condition.Metric]
-					if !compareValue(total, condition.Operator, float64(condition.Value)) {
-						triggered = false
-						break
-					}
-				}
-			}
 
-			if triggered {
-				fmt.Printf("规则 %d 触发预警(account=%s)\n", rule.ID, accountIDStr)
-				// todo 执行预警动作
+				if targetTriggered {
+					fmt.Printf("规则 %s 目标(%s) %s 因为 %s 触发预警\n", rule.RuleName, rule.Target, targetID, triggerReason)
+					// 写入触发记录
+					record := &schema.HostTriggerRecord{
+						RuleID:        int(rule.ID),
+						AdvertiserID:  advertiserID,
+						Target:        rule.Target,
+						ExecuteAction: rule.ExecuteAction,
+						ExecuteStatus: "pending",
+						TriggerReason: triggerReason,
+					}
+					// 根据target类型填充对应的ID字段
+					targetIDInt, _ := strconv.ParseInt(targetID, 10, 64)
+					switch rule.Target {
+					case "creative":
+						record.MaterialID = targetIDInt
+					default:
+						record.PromotionID = targetIDInt
+					}
+					if err := s.HostTriggerRecord.Create(ctx, record); err != nil {
+						fmt.Printf("规则 %s 写入触发记录失败: %v\n", rule.RuleName, err)
+					}
+				}
 			}
 		}
 	}
@@ -539,6 +584,97 @@ func (s *Crontab) SyncPromotionMaterial(agentID, advertiserID int64) error {
 		}
 
 		time.Sleep(200 * time.Millisecond)
+	}
+
+	return nil
+}
+
+// compareValue 比较两个float64值，支持 <=, <, >=, >, ==, !=
+func (s *Crontab) SyncHostTriggerRecord() error {
+	ctx := context.Background()
+
+	// 查询待执行的触发记录
+	records, err := s.HostTriggerRecord.QueryPending(ctx)
+	if err != nil {
+		return fmt.Errorf("查询待执行触发记录失败: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil
+	}
+
+	for _, record := range records {
+		// 映射 execute_action 到 optStatus: pause→DISABLE, restart→ENABLE
+		optStatus := "DISABLE"
+		if record.ExecuteAction == "restart" {
+			optStatus = "ENABLE"
+		}
+
+		// 获取规则信息（含钉钉 webhook）
+		rule, err := s.HostRule.Get(ctx, uint(record.RuleID))
+		if err != nil || rule == nil {
+			_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("获取规则失败: %v", err))
+			continue
+		}
+
+		var apiResult string
+		switch record.Target {
+		case "promotion":
+			// 检查是否已处于目标状态
+			inStatus, err := s.PromotionMaterial.IsPromotionInTargetStatus(ctx, record.AdvertiserID, record.PromotionID, optStatus)
+			if err != nil {
+				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
+				continue
+			}
+			if inStatus {
+				apiResult = "已处于目标状态，无需执行"
+				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+			} else {
+				_, err = s.Oceanengine.UpdatePromotionStatus(ctx, rule.AgentID, optStatus, []int64{record.PromotionID}, record.AdvertiserID)
+				if err != nil {
+					apiResult = fmt.Sprintf("执行失败: %v", err)
+					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", apiResult)
+				} else {
+					apiResult = "执行成功"
+					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+				}
+			}
+		case "creative":
+			// material_status 映射: DISABLE→MATERIAL_STATUS_DELETE, ENABLE→MATERIAL_STATUS_OK
+			materialTargetStatus := "MATERIAL_STATUS_DELETE"
+			if optStatus == "ENABLE" {
+				materialTargetStatus = "MATERIAL_STATUS_OK"
+			}
+			inStatus, err := s.PromotionMaterial.IsMaterialInTargetStatus(ctx, record.AdvertiserID, record.MaterialID, materialTargetStatus)
+			if err != nil {
+				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
+				continue
+			}
+			if inStatus {
+				apiResult = "已处于目标状态，无需执行"
+				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+			} else {
+				_, err = s.Oceanengine.UpdateMaterialStatus(ctx, rule.AgentID, optStatus, []int64{record.MaterialID}, record.PromotionID, record.AdvertiserID)
+				if err != nil {
+					apiResult = fmt.Sprintf("执行失败: %v", err)
+					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", apiResult)
+				} else {
+					apiResult = "执行成功"
+					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+				}
+			}
+		default:
+			_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("不支持的目标类型: %s", record.Target))
+			continue
+		}
+
+		// 发送钉钉通知
+		if rule.DingtalkWebhookUrl != "" {
+			notifyContent := fmt.Sprintf("【托管规则执行通知】\n触发原因：%s\n执行结果：%s", record.TriggerReason, apiResult)
+			if err := util.SendDingTalkText(rule.DingtalkWebhookUrl, notifyContent, nil, false); err != nil {
+				fmt.Printf("发送钉钉通知失败(record=%d): %v\n", record.ID, err)
+			}
+		}
 	}
 
 	return nil

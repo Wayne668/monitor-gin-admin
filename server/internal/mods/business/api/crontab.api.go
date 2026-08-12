@@ -56,3 +56,11 @@ func (t *Crontab) SyncPromotionMaterial(c *gin.Context) {
 	}
 	util.ResSuccess(c, nil)
 }
+
+func (t *Crontab) SyncHostTriggerRecord(c *gin.Context) {
+	if err := t.CrontabBIZ.SyncHostTriggerRecord(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, nil)
+}
