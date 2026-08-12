@@ -26,7 +26,7 @@ func (a *HostField) Query(ctx context.Context, params schema.HostFieldQueryParam
 		opt = opts[0]
 	}
 
-	db := GetHostFieldDB(ctx, a.DB)
+	db := GetHostFieldDB(ctx, a.DB).Where("status = ?", 1)
 
 	if v := params.Cate; len(v) > 0 {
 		db = db.Where("cate = ?", v)
@@ -47,7 +47,7 @@ func (a *HostField) Query(ctx context.Context, params schema.HostFieldQueryParam
 // FindAll 查询全部托管字段（不分页，用于前端下拉渲染）
 func (a *HostField) FindAll(ctx context.Context) (schema.HostFields, error) {
 	var list schema.HostFields
-	err := GetHostFieldDB(ctx, a.DB).Order("id ASC").Find(&list).Error
+	err := GetHostFieldDB(ctx, a.DB).Where("status = ?", 1).Order("id ASC").Find(&list).Error
 	return list, errors.WithStack(err)
 }
 

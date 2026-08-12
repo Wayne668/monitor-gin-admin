@@ -97,7 +97,7 @@ func (a *PromotionMaterial) UpsertBatch(ctx context.Context, items []schema.Prom
 }
 
 // FindExistingTargetIDs 返回已存在的 target_id 集合
-func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs []string, advertiserID int64, target string) ([]int64, error) {
+func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs []int64, advertiserID int64, target string) ([]int64, error) {
 	if len(targetIDs) == 0 {
 		return nil, nil
 	}

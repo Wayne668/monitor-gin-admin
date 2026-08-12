@@ -19,6 +19,7 @@ type HostField struct {
 	Stash   int8   `json:"stash" gorm:"column:stash;type:tinyint(1);not null;default:0"`
 	Unit    string `json:"unit" gorm:"column:unit;type:varchar(5);not null;default:''"`
 	Formula string `json:"formula" gorm:"column:formula;type:varchar(255);not null;default:''"`
+	Status  int8   `json:"status" gorm:"column:status;type:tinyint(1);not null;default:0"`
 }
 
 func (HostField) TableName() string {
@@ -53,6 +54,7 @@ type HostFieldForm struct {
 	Stash   int8   `json:"stash" binding:"required,oneof=1 2"`
 	Unit    string `json:"unit" binding:"max=5"`
 	Formula string `json:"formula" binding:"max=255"`
+	Status  int8   `json:"status" binding:"oneof=0 1"`
 }
 
 func (a *HostFieldForm) Validate() error {
@@ -66,4 +68,5 @@ func (a *HostFieldForm) FillTo(item *HostField) {
 	item.Stash = a.Stash
 	item.Unit = a.Unit
 	item.Formula = a.Formula
+	item.Status = a.Status
 }

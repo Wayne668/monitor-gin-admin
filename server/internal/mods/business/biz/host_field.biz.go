@@ -48,6 +48,9 @@ func (a *HostField) Get(ctx context.Context, id uint) (*schema.HostField, error)
 func (a *HostField) Create(ctx context.Context, formItem *schema.HostFieldForm) (*schema.HostField, error) {
 	item := &schema.HostField{}
 	formItem.FillTo(item)
+	if item.Status == 0 {
+		item.Status = 1
+	}
 	if err := a.HostFieldDAL.Create(ctx, item); err != nil {
 		return nil, err
 	}

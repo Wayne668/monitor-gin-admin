@@ -246,7 +246,7 @@ func (s *Crontab) HandleHostRule() error {
 				continue
 			}
 
-			// 查询nb_promotion_material表, 使用promotionIDs或者projectIDs或者materialIDs作为in条件结合advertiserID筛选出符合目标的记录
+			// 查询nb_promotion_material表, 使用promotionIDs或者projectIDs或者materialIDs作为in条件结合advertiserID筛选出符合目标的记录，用于filtering
 			var dimensions []string
 			var topic string
 			var existingPromotionIDs []int64
@@ -256,7 +256,11 @@ func (s *Crontab) HandleHostRule() error {
 				dimensions = []string{"stat_time_day", "cdp_promotion_id"}
 				topic = "BASIC_DATA"
 				// 筛选出已存在的 promotion_id
-				existingPromotionIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, promotionIDs, advertiserID, "promotion")
+				promotionIDInts := make([]int64, len(promotionIDs))
+				for i, id := range promotionIDs {
+					promotionIDInts[i], _ = strconv.ParseInt(id, 10, 64)
+				}
+				existingPromotionIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, promotionIDInts, advertiserID, "promotion")
 				if err != nil {
 					fmt.Printf("规则 %d 查询已存在的 promotion_id 失败(account=%s): %v\n", rule.ID, accountIDStr, err)
 					continue
@@ -268,7 +272,11 @@ func (s *Crontab) HandleHostRule() error {
 				dimensions = []string{"stat_time_day", "material_id", "cdp_promotion_id"}
 				topic = "MATERIAL_DATA"
 				// 筛选出已存在的 material_id
-				existingMaterialIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, materialIDs, advertiserID, "material")
+				materialIDInts := make([]int64, len(materialIDs))
+				for i, id := range materialIDs {
+					materialIDInts[i], _ = strconv.ParseInt(id, 10, 64)
+				}
+				existingMaterialIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, materialIDInts, advertiserID, "material")
 				if err != nil {
 					fmt.Printf("规则 %d 查询已存在的 material_id 失败(account=%s): %v\n", rule.ID, accountIDStr, err)
 					continue
@@ -304,17 +312,6 @@ func (s *Crontab) HandleHostRule() error {
 					}
 					req.Filters = append(req.Filters, schema.CustomReportFilter{
 						Field:    "material_id",
-						Type:     2,
-						Operator: 7,
-						Values:   values,
-					})
-				} else if rule.Target == "project" {
-					values := make([]string, len(existingPromotionIDs))
-					for i, id := range existingPromotionIDs {
-						values[i] = strconv.FormatInt(id, 10)
-					}
-					req.Filters = append(req.Filters, schema.CustomReportFilter{
-						Field:    "cdp_project_id",
 						Type:     2,
 						Operator: 7,
 						Values:   values,
