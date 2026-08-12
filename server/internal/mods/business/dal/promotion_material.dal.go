@@ -95,3 +95,35 @@ func (a *PromotionMaterial) UpsertBatch(ctx context.Context, items []schema.Prom
 	}
 	return nil
 }
+
+// FindExistingTargetIDs 返回已存在的 target_id 集合
+func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs []string, advertiserID int64, target string) ([]int64, error) {
+	if len(targetIDs) == 0 {
+		return nil, nil
+	}
+	var list []int64
+	var err error
+	if target == "promotion" {
+		err = util.GetDB(ctx, a.DB).
+			Select("promotion_id").
+			Where("advertiser_id = ?", advertiserID).
+			Where("promotion_id IN ?", targetIDs).
+			Find(&list).Error
+	} else {
+		err = util.GetDB(ctx, a.DB).
+			Select("material_id").
+			Where("advertiser_id = ?", advertiserID).
+			Where("material_id IN ?", targetIDs).
+			Find(&list).Error
+	}
+
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	if len(list) == 0 {
+		return nil, nil
+	}
+
+	return list, nil
+}

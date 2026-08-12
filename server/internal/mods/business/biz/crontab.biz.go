@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"monitor-gin-admin/internal/mods/business/dal"
 	"monitor-gin-admin/internal/mods/business/schema"
-	"time"
 )
 
 type Crontab struct {
@@ -145,17 +148,78 @@ func (s *Crontab) HandleHostRule() error {
 			continue
 		}
 
-		// 解析 trigger_condition JSON 为 CustomReportReq
-		var condition struct {
-			DataTopic  string                       `json:"dataTopic"`
-			Dimensions []string                     `json:"dimensions"`
-			Metrics    []string                     `json:"metrics"`
-			Filters    []schema.CustomReportFilter  `json:"filters"`
-			OrderBy    []schema.CustomReportOrderBy `json:"order_by"`
+		type conditionItem struct {
+			Metric   string `json:"metric"`
+			Operator string `json:"operator"`
+			Time     string `json:"time"`
+			Unit     string `json:"unit"`
+			Value    int64  `json:"value"`
 		}
-		if err := json.Unmarshal([]byte(rule.TriggerCondition), &condition); err != nil {
+		// 解析 trigger_condition JSON 为 CustomReportReq
+		// {"conditions":[{"metric":"stat_cost","operator":"\u003c","time":"today","unit":"元","value":20}],"logic":"and"}
+		var timeRange schema.TimeFiltering
+		if strings.Contains(rule.TriggerCondition, "last_7days") {
+			timeRange = schema.TimeFiltering{
+				CreateStartTime: now.AddDate(0, 0, -7).Format("2006-01-02"),
+				CreateEndTime:   now.Format("2006-01-02"),
+			}
+		} else if strings.Contains(rule.TriggerCondition, "last_5days") {
+			timeRange = schema.TimeFiltering{
+				CreateStartTime: now.AddDate(0, 0, -5).Format("2006-01-02"),
+				CreateEndTime:   now.Format("2006-01-02"),
+			}
+		} else if strings.Contains(rule.TriggerCondition, "last_3days") {
+			timeRange = schema.TimeFiltering{
+				CreateStartTime: now.AddDate(0, 0, -3).Format("2006-01-02"),
+				CreateEndTime:   now.Format("2006-01-02"),
+			}
+		} else if strings.Contains(rule.TriggerCondition, "today") {
+			timeRange = schema.TimeFiltering{
+				CreateStartTime: now.Format("2006-01-02"),
+				CreateEndTime:   now.Format("2006-01-02"),
+			}
+		} else {
+			continue
+		}
+
+		var triggerCondition struct {
+			Logic      string          `json:"logic"`
+			Conditions []conditionItem `json:"conditions"`
+		}
+
+		if err := json.Unmarshal([]byte(rule.TriggerCondition), &triggerCondition); err != nil {
 			fmt.Printf("解析规则 %d trigger_condition 失败: %v\n", rule.ID, err)
 			continue
+		}
+
+		// 遍历获取所有metric并添加到metrics中
+		var metrics []string
+
+		metricTime := make(map[string]schema.TimeFiltering)
+		for _, condition := range triggerCondition.Conditions {
+			metrics = append(metrics, condition.Metric)
+			switch condition.Time {
+			case "today":
+				metricTime[condition.Metric] = schema.TimeFiltering{
+					CreateStartTime: now.Format("2006-01-02"),
+					CreateEndTime:   now.Format("2006-01-02"),
+				}
+			case "last_3days":
+				metricTime[condition.Metric] = schema.TimeFiltering{
+					CreateStartTime: now.AddDate(0, 0, -3).Format("2006-01-02"),
+					CreateEndTime:   now.Format("2006-01-02"),
+				}
+			case "last_5days":
+				metricTime[condition.Metric] = schema.TimeFiltering{
+					CreateStartTime: now.AddDate(0, 0, -5).Format("2006-01-02"),
+					CreateEndTime:   now.Format("2006-01-02"),
+				}
+			case "last_7days":
+				metricTime[condition.Metric] = schema.TimeFiltering{
+					CreateStartTime: now.AddDate(0, 0, -7).Format("2006-01-02"),
+					CreateEndTime:   now.Format("2006-01-02"),
+				}
+			}
 		}
 
 		// 解析 TargetAccounts JSON 获取 account IDs
@@ -165,29 +229,183 @@ func (s *Crontab) HandleHostRule() error {
 			continue
 		}
 
+		var materialIDs []string
+		if err := json.Unmarshal([]byte(rule.TargetMaterial), &materialIDs); err != nil {
+			fmt.Printf("解析规则 %d target_material 失败: %v\n", rule.ID, err)
+			continue
+		}
+		var promotionIDs []string
+		if err := json.Unmarshal([]byte(rule.TargetPromotion), &promotionIDs); err != nil {
+			fmt.Printf("解析规则 %d target_promotion 失败: %v\n", rule.ID, err)
+			continue
+		}
+
 		for _, accountIDStr := range accountIDs {
-			advertiserID, err := fmt.Sscanf(accountIDStr, "%d", new(int64))
+			advertiserID, err := strconv.ParseInt(accountIDStr, 10, 64)
 			if err != nil {
 				continue
 			}
-			_ = advertiserID
 
-			req := schema.CustomReportReq{
-				DataTopic:  condition.DataTopic,
-				Dimensions: condition.Dimensions,
-				Metrics:    condition.Metrics,
-				Filters:    condition.Filters,
-				OrderBy:    condition.OrderBy,
-				StartTime:  now.Format("2006-01-02"),
-				EndTime:    now.Format("2006-01-02"),
-				Page:       1,
-				PageSize:   10,
+			// 查询nb_promotion_material表, 使用promotionIDs或者projectIDs或者materialIDs作为in条件结合advertiserID筛选出符合目标的记录
+			var dimensions []string
+			var topic string
+			var existingPromotionIDs []int64
+			var existingMaterialIDs []int64
+			switch rule.Target {
+			case "promotion":
+				dimensions = []string{"stat_time_day", "cdp_promotion_id"}
+				topic = "BASIC_DATA"
+				// 筛选出已存在的 promotion_id
+				existingPromotionIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, promotionIDs, advertiserID, "promotion")
+				if err != nil {
+					fmt.Printf("规则 %d 查询已存在的 promotion_id 失败(account=%s): %v\n", rule.ID, accountIDStr, err)
+					continue
+				}
+				if len(existingPromotionIDs) == 0 {
+					continue
+				}
+			case "creative":
+				dimensions = []string{"stat_time_day", "material_id", "cdp_promotion_id"}
+				topic = "MATERIAL_DATA"
+				// 筛选出已存在的 material_id
+				existingMaterialIDs, err = s.PromotionMaterial.FindExistingTargetIDs(ctx, materialIDs, advertiserID, "material")
+				if err != nil {
+					fmt.Printf("规则 %d 查询已存在的 material_id 失败(account=%s): %v\n", rule.ID, accountIDStr, err)
+					continue
+				}
+				if len(existingMaterialIDs) == 0 {
+					continue
+				}
 			}
 
-			_, err = s.Oceanengine.QueryCustomReport(ctx, rule.AgentID, req)
-			if err != nil {
-				fmt.Printf("规则 %d 查询自定义报表失败(account=%s): %v\n", rule.ID, accountIDStr, err)
+			// 分页循环请求，收集所有数据
+			var allRows []schema.CustomReportRow
+			page := 1
+			for {
+				req := schema.CustomReportReq{
+					AdvertiserID: advertiserID,
+					DataTopic:    topic,
+					Dimensions:   dimensions,
+					Metrics:      metrics,
+					Filters: []schema.CustomReportFilter{
+						{Field: "image_mode", Type: 2, Operator: 7, Values: []string{"5", "15"}},
+					},
+					StartTime: timeRange.CreateStartTime,
+					EndTime:   timeRange.CreateEndTime,
+					Page:      page,
+					PageSize:  100,
+				}
+
+				// 根据target类型添加对应的筛选条件
+				if rule.Target == "creative" {
+					values := make([]string, len(existingMaterialIDs))
+					for i, id := range existingMaterialIDs {
+						values[i] = strconv.FormatInt(id, 10)
+					}
+					req.Filters = append(req.Filters, schema.CustomReportFilter{
+						Field:    "material_id",
+						Type:     2,
+						Operator: 7,
+						Values:   values,
+					})
+				} else if rule.Target == "project" {
+					values := make([]string, len(existingPromotionIDs))
+					for i, id := range existingPromotionIDs {
+						values[i] = strconv.FormatInt(id, 10)
+					}
+					req.Filters = append(req.Filters, schema.CustomReportFilter{
+						Field:    "cdp_project_id",
+						Type:     2,
+						Operator: 7,
+						Values:   values,
+					})
+				} else {
+					values := make([]string, len(existingPromotionIDs))
+					for i, id := range existingPromotionIDs {
+						values[i] = strconv.FormatInt(id, 10)
+					}
+					req.Filters = append(req.Filters, schema.CustomReportFilter{
+						Field:    "cdp_promotion_id",
+						Type:     2,
+						Operator: 7,
+						Values:   values,
+					})
+				}
+
+				resp, err := s.Oceanengine.QueryCustomReport(ctx, rule.AgentID, req)
+				if err != nil {
+					fmt.Printf("规则 %d 查询自定义报表失败(account=%s, page=%d): %v\n", rule.ID, accountIDStr, page, err)
+					break
+				}
+
+				allRows = append(allRows, resp.Data.Rows...)
+
+				if page >= resp.Data.PageInfo.TotalPage || len(resp.Data.Rows) == 0 {
+					break
+				}
+				page++
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			if len(allRows) == 0 {
 				continue
+			}
+
+			// 聚合每个metric的数据，仅在stat_time_day处于metricTime区间内累加
+			metricTotals := make(map[string]float64)
+			for _, row := range allRows {
+				statDay, _ := row.Dimensions["stat_time_day"].(string)
+				for _, condition := range triggerCondition.Conditions {
+					// 检查stat_time_day是否在metric时间区间内
+					mt, ok := metricTime[condition.Metric]
+					if ok && statDay != "" {
+						if statDay < mt.CreateStartTime || statDay > mt.CreateEndTime {
+							continue
+						}
+					}
+					val, ok := row.Metrics[condition.Metric]
+					if !ok {
+						continue
+					}
+					switch v := val.(type) {
+					case float64:
+						metricTotals[condition.Metric] += v
+					case json.Number:
+						if f, err := v.Float64(); err == nil {
+							metricTotals[condition.Metric] += f
+						}
+					case string:
+						if f, err := strconv.ParseFloat(v, 64); err == nil {
+							metricTotals[condition.Metric] += f
+						}
+					}
+				}
+			}
+
+			// 根据logic比较聚合结果：or任一满足即预警，and全部满足才预警
+			triggered := false
+			if triggerCondition.Logic == "or" {
+				for _, condition := range triggerCondition.Conditions {
+					total := metricTotals[condition.Metric]
+					if compareValue(total, condition.Operator, float64(condition.Value)) {
+						triggered = true
+						break
+					}
+				}
+			} else { // "and"
+				triggered = true
+				for _, condition := range triggerCondition.Conditions {
+					total := metricTotals[condition.Metric]
+					if !compareValue(total, condition.Operator, float64(condition.Value)) {
+						triggered = false
+						break
+					}
+				}
+			}
+
+			if triggered {
+				fmt.Printf("规则 %d 触发预警(account=%s)\n", rule.ID, accountIDStr)
+				// todo 执行预警动作
 			}
 		}
 	}
@@ -327,4 +545,24 @@ func (s *Crontab) SyncPromotionMaterial(agentID, advertiserID int64) error {
 	}
 
 	return nil
+}
+
+// compareValue 比较两个float64值，支持 <=, <, >=, >, ==, !=
+func compareValue(actual float64, operator string, expected float64) bool {
+	switch operator {
+	case "<=":
+		return actual <= expected
+	case "<":
+		return actual < expected
+	case ">=":
+		return actual >= expected
+	case ">":
+		return actual > expected
+	case "==":
+		return actual == expected
+	case "!=":
+		return actual != expected
+	default:
+		return false
+	}
 }

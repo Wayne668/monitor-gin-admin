@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"bytes"
 	"encoding/json"
 	"strconv"
 	"time"
@@ -119,9 +120,12 @@ func (a *HostRuleForm) FillTo(item *HostRule) {
 	item.RuleName = a.RuleName
 	item.Target = a.Target
 	item.AgentID, _ = strconv.ParseInt(a.SelectedAgentID, 10, 64)
-	// 使用条件与操作 JSON 序列化
-	condJSON, _ := json.Marshal(a.ConditionConfig)
-	item.TriggerCondition = string(condJSON)
+	// 使用条件与操作 JSON 序列化，不转义 HTML 字符
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(a.ConditionConfig)
+	item.TriggerCondition = string(bytes.TrimRight(buf.Bytes(), "\n"))
 	item.ExecuteAction = a.Action
 	// logic 映射到 operate_method：and=0, or=1
 	if cfg, ok := a.ConditionConfig.(map[string]interface{}); ok {
