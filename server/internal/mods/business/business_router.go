@@ -19,6 +19,7 @@ type Business struct {
 	DeleteUnauditedMaterialAPI *api.DeleteUnauditedMaterial
 	CrontabAPI                 *api.Crontab
 	HostTriggerRecordAPI       *api.HostTriggerRecord
+	AdvertiserBudgetAPI        *api.AdvertiserBudget
 }
 
 func (a *Business) Init(ctx context.Context) error {
@@ -31,6 +32,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		crontab.POST("refresh-token", a.CrontabAPI.RefreshToken)
 		crontab.POST("handle-host-rule", a.CrontabAPI.HandleHostRule)
 		crontab.GET("sync-promotion-material", a.CrontabAPI.SyncPromotionMaterial)
+		crontab.POST("sync-advertiser-budget", a.CrontabAPI.SyncAdvertiserBudget)
 	}
 
 	hostRule := v1.Group("host-rules")
@@ -86,6 +88,13 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 	hostTriggerRecord := v1.Group("host-trigger-records")
 	{
 		hostTriggerRecord.GET("", a.HostTriggerRecordAPI.Query)
+	}
+
+	advertiserBudget := v1.Group("advertiser-budget")
+	{
+		advertiserBudget.POST("update", a.AdvertiserBudgetAPI.UpdateImmediate)
+		advertiserBudget.POST("schedule", a.AdvertiserBudgetAPI.ScheduleNextDay)
+		advertiserBudget.GET("records", a.AdvertiserBudgetAPI.QueryByAdvertiser)
 	}
 
 	return nil

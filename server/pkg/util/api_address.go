@@ -114,4 +114,10 @@ const (
 
 	// 批量更新项目状态 https://open.oceanengine.com/labels/7/docs/1740941413906432
 	APIProjectStatusUpdate = "https://api.oceanengine.com/open_api/v3.0/project/status/update/"
+
+	// 更新账户日预算 https://open.oceanengine.com/labels/7/docs/1696710531631116
+	APIAdvertiserBudgetUpdate = "https://ad.oceanengine.com/open_api/2/advertiser/update/budget/"
+
+	// 获取账户日预算 https://open.oceanengine.com/labels/7/docs/1696710531128335
+	APIAdvertiserBudgetGet = "https://ad.oceanengine.com/open_api/2/advertiser/budget/get/"
 )

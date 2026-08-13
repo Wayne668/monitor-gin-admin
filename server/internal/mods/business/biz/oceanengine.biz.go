@@ -538,3 +538,55 @@ func (o *Oceanengine) DeleteMaterialUnderPromotion(ctx context.Context, accountI
 
 	return resp.RequestID, nil
 }
+
+func (o *Oceanengine) GetAdvertiserBudget(ctx context.Context, accountID int64, advertiserId int64) (string, error) {
+	accessToken, err := o.getAccessToken(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	advertiserIDsJSON, _ := json.Marshal([]int64{advertiserId})
+	params.Add("advertiser_ids", string(advertiserIDsJSON))
+
+	var resp schema.AdvertiserBudgetGetResponse
+	if err := util.DoGetRequest(accessToken, util.APIAdvertiserBudgetGet, params, &resp); err != nil {
+		logging.Context(ctx).Error("GetAdvertiserBudget API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
+		return "", fmt.Errorf("获取广告主预算请求失败: %w", err)
+	}
+
+	if resp.Code != 0 {
+		logging.Context(ctx).Error("GetAdvertiserBudget API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
+		return resp.RequestID, fmt.Errorf("获取广告主预算失败: code=%d message=%s", resp.Code, resp.Message)
+	}
+
+	return resp.RequestID, nil
+}
+
+func (o *Oceanengine) UpdateAdvertiserBudget(ctx context.Context, accountID int64, advertiserId int64, budgetMode string, budget float64) (string, error) {
+	accessToken, err := o.getAccessToken(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+
+	reqBody := map[string]interface{}{
+		"advertiser_id": advertiserId,
+		"budget_mode":   budgetMode,
+	}
+	if budgetMode == "BUDGET_MODE_DAY" {
+		reqBody["budget"] = budget
+	}
+
+	var resp schema.AdvertiserBudgetUpdateResponse
+	if err := util.DoPostJSONRequest(accessToken, util.APIAdvertiserBudgetUpdate, reqBody, &resp); err != nil {
+		logging.Context(ctx).Error("UpdateAdvertiserBudget API request failed", zap.Error(err), zap.Int64("account_id", accountID), zap.Int64("advertiser_id", advertiserId))
+		return "", fmt.Errorf("更新广告主预算请求失败: %w", err)
+	}
+
+	if resp.Code != 0 {
+		logging.Context(ctx).Error("UpdateAdvertiserBudget API returned error", zap.Int("code", resp.Code), zap.String("message", resp.Message), zap.Int64("account_id", accountID))
+		return resp.RequestID, fmt.Errorf("更新广告主预算失败: code=%d message=%s", resp.Code, resp.Message)
+	}
+
+	return resp.RequestID, nil
+}

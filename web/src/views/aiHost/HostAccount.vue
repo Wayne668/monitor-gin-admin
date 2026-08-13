@@ -42,6 +42,22 @@
                 :row-key="(record) => record.id"
                 :loading="loading">
                 <template #bodyCell="{ column, record }">
+                    <template v-if="'budget' === column.key">
+                        <a-button
+                            type="link"
+                            size="small"
+                            @click="handleBudget(record)">
+                            编辑
+                        </a-button>
+                    </template>
+                    <template v-if="'budgetRecord' === column.key">
+                        <a-button
+                            type="link"
+                            size="small"
+                            @click="handleBudgetRecord(record)">
+                            查看
+                        </a-button>
+                    </template>
                     <template v-if="'action' === column.key">
                         <a-button
                             type="link"
@@ -96,6 +112,65 @@
                 </a-form-item>
             </a-form>
         </a-modal>
+
+        <a-modal
+            v-model:open="budgetModalVisible"
+            title="账户预算"
+            :confirm-loading="budgetSubmitting"
+            width="520px"
+            @ok="handleBudgetSubmit">
+            <a-form
+                ref="budgetFormRef"
+                :model="budgetForm"
+                :rules="budgetRules"
+                :label-col="{ span: 6 }"
+                :wrapper-col="{ span: 16 }">
+                <a-form-item label="生效方式" name="effectType">
+                    <a-radio-group v-model:value="budgetForm.effectType">
+                        <a-radio value="immediate">立即生效</a-radio>
+                        <a-radio value="nextDay">次日生效</a-radio>
+                    </a-radio-group>
+                </a-form-item>
+                <template v-if="budgetForm.effectType === 'immediate'">
+                    <a-form-item label="预算模式" name="budgetMode">
+                        <a-select
+                            v-model:value="budgetForm.budgetMode"
+                            placeholder="请选择预算模式">
+                            <a-select-option value="BUDGET_MODE_INFINITE">不限预算</a-select-option>
+                            <a-select-option value="BUDGET_MODE_DAY">指定预算</a-select-option>
+                        </a-select>
+                    </a-form-item>
+                    <a-form-item label="预算金额" name="budget">
+                        <a-input
+                            v-model:value="budgetForm.budget"
+                            placeholder="请输入预算金额（元）"
+                            :disabled="budgetForm.budgetMode === 'BUDGET_MODE_INFINITE'" />
+                    </a-form-item>
+                </template>
+                <template v-if="budgetForm.effectType === 'nextDay'">
+                    <a-form-item label="预算模式">
+                        <a-input value="指定预算（BUDGET_MODE_DAY）" disabled />
+                    </a-form-item>
+                    <a-form-item label="预算金额">
+                        <a-input value="1000" disabled />
+                    </a-form-item>
+                </template>
+            </a-form>
+        </a-modal>
+
+        <a-modal
+            v-model:open="recordModalVisible"
+            title="预算修改记录"
+            :footer="null"
+            width="700px">
+            <a-table
+                :columns="recordColumns"
+                :data-source="recordData"
+                :loading="recordLoading"
+                :pagination="false"
+                row-key="id"
+                size="small" />
+        </a-modal>
     </div>
 </template>
 
@@ -104,13 +179,25 @@ import { ref, reactive, onMounted } from 'vue'
 import { Modal, message } from 'ant-design-vue'
 import { getHostAccountList, getHostAccount, createHostAccount, updateHostAccount, delHostAccount } from '@/apis/modules/hostAccount'
 import { getAgentTokenList } from '@/apis/modules/agentToken'
+import { updateAdvertiserBudget, scheduleAdvertiserBudget, getBudgetRecords } from '@/apis/modules/advertiserBudget'
 
 const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
     { title: '代理商ID', dataIndex: 'agentId', key: 'agentId', width: 180 },
     { title: '广告主ID', dataIndex: 'advertiserId', key: 'advertiserId', width: 180 },
     { title: '广告主名称', dataIndex: 'advertiserName', key: 'advertiserName', ellipsis: true },
+    // { title: '账户预算', key: 'budget', width: 100 },
+    // { title: '预算记录', key: 'budgetRecord', width: 100 },
     { title: '操作', key: 'action', width: 140, fixed: 'right' },
+]
+
+const recordColumns = [
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+    { title: '预算金额', dataIndex: 'budget', key: 'budget', width: 100 },
+    { title: '预算模式', dataIndex: 'budgetMod', key: 'budgetMod', width: 100 },
+    { title: '是否生效', dataIndex: 'isSet', key: 'isSet', width: 80 },
+    { title: '错误信息', dataIndex: 'errMsg', key: 'errMsg', ellipsis: true },
+    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
 ]
 
 const loading = ref(false)
@@ -263,6 +350,91 @@ const handleDelete = (row) => {
             }
         },
     })
+}
+
+// 预算弹窗
+const budgetModalVisible = ref(false)
+const budgetSubmitting = ref(false)
+const budgetFormRef = ref()
+const currentBudgetRecord = ref(null)
+
+const defaultBudgetForm = {
+    effectType: 'immediate',
+    budgetMode: '',
+    budget: '',
+}
+const budgetForm = reactive({ ...defaultBudgetForm })
+
+const budgetRules = {
+    effectType: [{ required: true, message: '请选择生效方式', trigger: 'change' }],
+    budgetMode: [{ required: true, message: '请选择预算模式', trigger: 'change' }],
+}
+
+const resetBudgetForm = () => {
+    Object.assign(budgetForm, defaultBudgetForm)
+}
+
+const handleBudget = (record) => {
+    currentBudgetRecord.value = record
+    resetBudgetForm()
+    budgetModalVisible.value = true
+}
+
+const handleBudgetSubmit = async () => {
+    // 动态校验
+    if (budgetForm.effectType === 'immediate') {
+        if (!budgetForm.budgetMode) {
+            message.error('请选择预算模式')
+            return
+        }
+        if (budgetForm.budgetMode === 'BUDGET_MODE_DAY' && !budgetForm.budget) {
+            message.error('请输入预算金额')
+            return
+        }
+    }
+    budgetSubmitting.value = true
+    try {
+        const record = currentBudgetRecord.value
+        if (budgetForm.effectType === 'immediate') {
+            await updateAdvertiserBudget({
+                accountId: record.agentId,
+                advertiserId: record.advertiserId,
+                budgetMode: budgetForm.budgetMode,
+                budget: budgetForm.budgetMode === 'BUDGET_MODE_DAY' ? Number(budgetForm.budget) : 0,
+            })
+            message.success('预算更新成功')
+        } else {
+            await scheduleAdvertiserBudget({
+                advertiserId: record.advertiserId,
+                budget: 1000,
+                budgetMod: 'nextDay',
+            })
+            message.success('已提交次日生效预算')
+        }
+        budgetModalVisible.value = false
+    } catch (e) {
+        message.error(budgetForm.effectType === 'immediate' ? '预算更新失败' : '提交失败')
+    } finally {
+        budgetSubmitting.value = false
+    }
+}
+
+// 预算记录弹窗
+const recordModalVisible = ref(false)
+const recordLoading = ref(false)
+const recordData = ref([])
+
+const handleBudgetRecord = async (record) => {
+    recordModalVisible.value = true
+    recordLoading.value = true
+    try {
+        const res = await getBudgetRecords({ advertiserId: record.advertiserId })
+        recordData.value = res.data || []
+    } catch (e) {
+        message.error('加载预算记录失败')
+    } finally {
+        recordLoading.value = false
+    }
 }
 
 onMounted(() => {

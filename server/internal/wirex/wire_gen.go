@@ -151,6 +151,9 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	hostTriggerRecord := &dal2.HostTriggerRecord{
 		DB: db,
 	}
+	updateAccountBudget := &dal2.UpdateAccountBudget{
+		DB: db,
+	}
 
 	// === Shared Oceanengine instance with AgentTokenDAL ===
 	bizOceanengine := &biz2.Oceanengine{
@@ -175,15 +178,16 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		HostAccountDAL: hostAccount,
 	}
 	bizCrontab := &biz2.Crontab{
-		AccountInfo:       accountInfo,
-		Oceanengine:       bizOceanengine,
-		AgentToken:        agentToken,
-		HostRule:          hostRule,
-		HostAccount:       hostAccount,
-		PromotionMaterial: promotionMaterial,
-		MaterialVideo:     materialVideo,
-		HostTriggerRecord: hostTriggerRecord,
-		HostField:         hostField,
+		AccountInfo:         accountInfo,
+		Oceanengine:         bizOceanengine,
+		AgentToken:          agentToken,
+		HostRule:            hostRule,
+		HostAccount:         hostAccount,
+		PromotionMaterial:   promotionMaterial,
+		MaterialVideo:       materialVideo,
+		HostTriggerRecord:   hostTriggerRecord,
+		HostField:           hostField,
+		UpdateAccountBudget: updateAccountBudget,
 	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,
@@ -220,6 +224,10 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 	apiHostTriggerRecord := &api2.HostTriggerRecord{
 		HostTriggerRecordBIZ: bizHostTriggerRecord,
 	}
+	apiAdvertiserBudget := &api2.AdvertiserBudget{
+		OceanengineBIZ:         bizOceanengine,
+		UpdateAccountBudgetDAL: updateAccountBudget,
+	}
 	businessBusiness := &business.Business{
 		DB:                         db,
 		HostRuleAPI:                apiHostRule,
@@ -230,6 +238,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		DeleteUnauditedMaterialAPI: apiDeleteUnauditedMaterial,
 		CrontabAPI:                 apiCrontab,
 		HostTriggerRecordAPI:       apiHostTriggerRecord,
+		AdvertiserBudgetAPI:        apiAdvertiserBudget,
 	}
 	modsMods := &mods.Mods{
 		RBAC:     rbacRBAC,

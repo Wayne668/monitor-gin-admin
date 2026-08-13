@@ -64,3 +64,11 @@ func (t *Crontab) SyncHostTriggerRecord(c *gin.Context) {
 	}
 	util.ResSuccess(c, nil)
 }
+
+func (t *Crontab) SyncAdvertiserBudget(c *gin.Context) {
+	if err := t.CrontabBIZ.SyncAdvertiserBudget(); err != nil {
+		util.ResError(c, err)
+		return
+	}
+	util.ResSuccess(c, nil)
+}

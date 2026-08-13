@@ -140,3 +140,27 @@ type RefreshTokenResponse struct {
 		ExpireTime   int    `json:"expire_time"`
 	} `json:"data"`
 }
+
+// AdvertiserBudgetGetResponse 获取广告主预算响应结构
+type AdvertiserBudgetGetResponse struct {
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
+	RequestID string `json:"request_id"`
+	Data      struct {
+		List []AdvertiserBudgetItem `json:"list"`
+	} `json:"data"`
+}
+
+// AdvertiserBudgetItem 广告主预算信息
+type AdvertiserBudgetItem struct {
+	AdvertiserID int64   `json:"advertiser_id"`
+	Budget       float64 `json:"budget"`
+	BudgetMode   string  `json:"budget_mode"`
+}
+
+// AdvertiserBudgetUpdateResponse 更新广告主预算响应结构
+type AdvertiserBudgetUpdateResponse struct {
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
+	RequestID string `json:"request_id"`
+}

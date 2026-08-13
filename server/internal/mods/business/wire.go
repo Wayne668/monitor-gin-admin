@@ -37,4 +37,6 @@ var Set = wire.NewSet(
 	wire.Struct(new(dal.DeleteUnauditedMaterial), "*"),
 	wire.Struct(new(biz.DeleteUnauditedMaterial), "*"),
 	wire.Struct(new(api.DeleteUnauditedMaterial), "*"),
+	wire.Struct(new(dal.UpdateAccountBudget), "*"),
+	wire.Struct(new(api.AdvertiserBudget), "*"),
 )

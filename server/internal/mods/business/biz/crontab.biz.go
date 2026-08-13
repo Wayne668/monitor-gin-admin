@@ -14,15 +14,16 @@ import (
 )
 
 type Crontab struct {
-	AccountInfo       *dal.AccountInfo
-	Oceanengine       *Oceanengine
-	AgentToken        *dal.AgentToken
-	HostRule          *dal.HostRule
-	HostAccount       *dal.HostAccount
-	PromotionMaterial *dal.PromotionMaterial
-	MaterialVideo     *dal.MaterialVideo
-	HostTriggerRecord *dal.HostTriggerRecord
-	HostField         *dal.HostField
+	AccountInfo         *dal.AccountInfo
+	Oceanengine         *Oceanengine
+	AgentToken          *dal.AgentToken
+	HostRule            *dal.HostRule
+	HostAccount         *dal.HostAccount
+	PromotionMaterial   *dal.PromotionMaterial
+	MaterialVideo       *dal.MaterialVideo
+	HostTriggerRecord   *dal.HostTriggerRecord
+	HostField           *dal.HostField
+	UpdateAccountBudget *dal.UpdateAccountBudget
 }
 
 func (s *Crontab) SyncAccounts(ctx context.Context, accountID int64, StartDate, EndDate string) error {
@@ -859,4 +860,58 @@ func compareValue(actual float64, operator string, expected float64) bool {
 	default:
 		return false
 	}
+}
+
+// SyncAdvertiserBudget 拉取 nb_update_account_budget 中 is_set=0 且 budget_mod='nextDay' 的记录，
+// 调用 Oceanengine API 更新预算
+func (s *Crontab) SyncAdvertiserBudget() error {
+	ctx := context.Background()
+
+	records, err := s.UpdateAccountBudget.FindPendingNextDay(ctx)
+	if err != nil {
+		return fmt.Errorf("查询待执行预算记录失败: %w", err)
+	}
+
+	fmt.Printf("[SyncAdvertiserBudget] 查询到 %d 条待执行预算记录\n", len(records))
+
+	if len(records) == 0 {
+		return nil
+	}
+
+	// 查询所有托管账户，建立 advertiserID -> agentID 的映射
+	accounts, err := s.HostAccount.FindAllEnabled(ctx)
+	if err != nil {
+		return fmt.Errorf("查询托管账户失败: %w", err)
+	}
+
+	accountMap := make(map[int64]int64) // advertiserID -> agentID
+	for _, acc := range accounts {
+		accountMap[acc.AdvertiserID] = acc.AgentID
+	}
+
+	for _, record := range records {
+		agentID, ok := accountMap[record.AdvertiserID]
+		if !ok {
+			errMsg := fmt.Sprintf("未找到广告主 %d 对应的代理商", record.AdvertiserID)
+			fmt.Printf("[SyncAdvertiserBudget] 记录[%d] %s\n", record.ID, errMsg)
+			_ = s.UpdateAccountBudget.UpdateSetStatus(ctx, record.ID, 0, errMsg)
+			continue
+		}
+
+		fmt.Printf("[SyncAdvertiserBudget] 处理记录[%d] advertiserID=%d budget=%.2f\n",
+			record.ID, record.AdvertiserID, record.Budget)
+
+		_, err := s.Oceanengine.UpdateAdvertiserBudget(ctx, agentID, record.AdvertiserID, "BUDGET_MODE_DAY", record.Budget)
+		if err != nil {
+			errMsg := fmt.Sprintf("更新预算失败: %v", err)
+			fmt.Printf("[SyncAdvertiserBudget] 记录[%d] %s\n", record.ID, errMsg)
+			_ = s.UpdateAccountBudget.UpdateSetStatus(ctx, record.ID, 0, errMsg)
+		} else {
+			fmt.Printf("[SyncAdvertiserBudget] 记录[%d] 更新成功\n", record.ID)
+			_ = s.UpdateAccountBudget.UpdateSetStatus(ctx, record.ID, 1, "")
+		}
+	}
+
+	fmt.Printf("[SyncAdvertiserBudget] 处理完成，共处理 %d 条记录\n", len(records))
+	return nil
 }
