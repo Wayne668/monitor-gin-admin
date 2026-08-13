@@ -97,25 +97,41 @@ func (a *PromotionMaterial) UpsertBatch(ctx context.Context, items []schema.Prom
 }
 
 // FindExistingTargetIDs 返回已存在的 target_id 集合
-func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs []int64, advertiserID int64, target string) ([]int64, error) {
+func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs []int64, advertiserID int64, target string, isExclude bool) ([]int64, error) {
 	if len(targetIDs) == 0 {
 		return nil, nil
 	}
 	var list []int64
 	var err error
+	var db *gorm.DB
 	if target == "promotion" {
-		err = util.GetDB(ctx, a.DB).
+		db = util.GetDB(ctx, a.DB).
 			Select("promotion_id").
 			Where("advertiser_id = ?", advertiserID).
-			Where("promotion_id IN ?", targetIDs).
-			Find(&list).Error
+			Where("status_first != ?", schema.PromotionStatusDeleted)
+		if len(targetIDs) > 0 {
+			if isExclude {
+				db.Where("promotion_id NOT IN ?", targetIDs)
+			} else {
+				db.Where("promotion_id IN ?", targetIDs)
+			}
+		}
 	} else {
-		err = util.GetDB(ctx, a.DB).
+		db = util.GetDB(ctx, a.DB).
 			Select("material_id").
 			Where("advertiser_id = ?", advertiserID).
 			Where("material_id IN ?", targetIDs).
-			Find(&list).Error
+			Where("material_status != ?", schema.MaterialStatusDelete)
+		if len(targetIDs) > 0 {
+			if isExclude {
+				db.Where("material_id NOT IN ?", targetIDs)
+			} else {
+				db.Where("material_id IN ?", targetIDs)
+			}
+		}
 	}
+
+	err = db.Find(&list).Error
 
 	if err != nil {
 		return nil, errors.WithStack(err)

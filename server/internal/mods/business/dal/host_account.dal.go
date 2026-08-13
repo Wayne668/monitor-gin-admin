@@ -100,3 +100,12 @@ func (a *HostAccount) FindAllEnabled(ctx context.Context) (schema.HostAccounts, 
 	}
 	return list, nil
 }
+
+func (a *HostAccount) FindExcludeAccount(ctx context.Context, excludeAccountIDs []int64) (schema.HostAccounts, error) {
+	var list schema.HostAccounts
+	result := GetHostAccountDB(ctx, a.DB).Where("status = ? AND advertiser_id NOT IN ?", 1, excludeAccountIDs).Find(&list)
+	if result.Error != nil {
+		return nil, errors.WithStack(result.Error)
+	}
+	return list, nil
+}

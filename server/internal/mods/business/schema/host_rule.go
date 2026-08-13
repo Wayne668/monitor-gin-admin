@@ -29,6 +29,7 @@ type HostRule struct {
 	TargetPromotion    string    `json:"target_promotion" gorm:"column:target_promotion;type:text;not null"`
 	TargetProjects     string    `json:"target_projects" gorm:"column:target_projects;type:text;not null"`
 	TargetMaterial     string    `json:"target_material" gorm:"column:target_material;type:text;not null"`
+	ScopeType          string    `json:"scope_type" gorm:"column:scope_type;type:varchar(30);not null;default:''"`
 	AgentID            int64     `json:"agent_id" gorm:"column:agent_id;type:bigint;not null;default:0"`
 	TriggerCondition   string    `json:"trigger_condition" gorm:"column:trigger_condition;type:text;not null"`
 	ExecuteAction      string    `json:"execute_action" gorm:"column:execute_action;type:varchar(255);not null;default:''"`
@@ -121,6 +122,7 @@ func (a *HostRuleForm) Validate() error {
 func (a *HostRuleForm) FillTo(item *HostRule) {
 	item.RuleName = a.RuleName
 	item.Target = a.Target
+	item.ScopeType = a.ScopeType
 	item.AgentID, _ = strconv.ParseInt(a.SelectedAgentID, 10, 64)
 	// 使用条件与操作 JSON 序列化，不转义 HTML 字符
 	buf := new(bytes.Buffer)

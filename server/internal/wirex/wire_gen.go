@@ -183,6 +183,7 @@ func BuildInjector(ctx context.Context) (*Injector, func(), error) {
 		PromotionMaterial: promotionMaterial,
 		MaterialVideo:     materialVideo,
 		HostTriggerRecord: hostTriggerRecord,
+		HostField:         hostField,
 	}
 	bizDeleteUnauditedMaterial := &biz2.DeleteUnauditedMaterial{
 		DeleteUnauditedMaterialDAL: deleteUnauditedMaterial,

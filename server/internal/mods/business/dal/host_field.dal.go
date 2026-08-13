@@ -80,3 +80,15 @@ func (a *HostField) Delete(ctx context.Context, id uint) error {
 	result := GetHostFieldDB(ctx, a.DB).Where("id=?", id).Delete(new(schema.HostField))
 	return errors.WithStack(result.Error)
 }
+
+// FindByField 根据 field 名称查找托管字段
+func (a *HostField) FindByField(ctx context.Context, field string) (*schema.HostField, error) {
+	item := new(schema.HostField)
+	ok, err := util.FindOne(ctx, GetHostFieldDB(ctx, a.DB).Where("field = ? AND status = 1", field), util.QueryOptions{}, item)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	} else if !ok {
+		return nil, nil
+	}
+	return item, nil
+}

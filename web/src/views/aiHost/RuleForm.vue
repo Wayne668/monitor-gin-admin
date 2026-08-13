@@ -390,15 +390,15 @@ const rules = reactive({
     dateRange: [{ required: true, message: '请选择生效日期', trigger: 'change' }],
     notifyMethods: [{ type: 'array', required: true, min: 1, message: '请至少选择一种通知方式', trigger: 'change' }],
     name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
-    agreeTerms: [
-        {
-            validator: (rule, value, callback) => {
-                if (!value) callback(new Error('请勾选服务条款'))
-                else callback()
-            },
-            trigger: 'change',
-        },
-    ],
+    // agreeTerms: [
+    //     {
+    //         validator: (rule, value, callback) => {
+    //             if (!value) callback(new Error('请勾选服务条款'))
+    //             else callback()
+    //         },
+    //         trigger: 'change',
+    //     },
+    // ],
 })
 
 const handleSave = async () => {
