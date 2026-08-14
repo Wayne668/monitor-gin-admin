@@ -727,7 +727,7 @@ func (s *Crontab) SyncPromotionMaterial(agentID, advertiserID int64) error {
 	return nil
 }
 
-// compareValue 比较两个float64值，支持 <=, <, >=, >, ==, !=
+// SyncHostTriggerRecord 同步待执行的触发记录
 func (s *Crontab) SyncHostTriggerRecord() error {
 	ctx := context.Background()
 

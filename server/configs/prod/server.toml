@@ -1,0 +1,81 @@
+[General]
+AppName = "ginadmin"
+Version = "v10.1.0"
+Debug = false
+PprofAddr = ""
+DisableSwagger = true
+DisablePrintConfig = true
+DefaultLoginPwd = "6351623c8cef86fefabfa7da046fc619" # MD5("abc-123")
+MenuFile = "menu_cn.json"
+DenyOperateMenu = false
+
+[General.HTTP]
+Addr = ":8040"
+ShutdownTimeout = 10
+ReadTimeout = 60
+WriteTimeout = 60
+IdleTimeout = 10
+CertFile = ""
+KeyFile = ""
+
+[General.Root]
+ID = "root"
+Username = "admin"
+Password = "6351623c8cef86fefabfa7da046fc619" # MD5("abc-123")
+Name = "Admin"
+
+[Storage]
+
+[Storage.Cache]
+Type = "memory"
+Delimiter = ":"
+
+[Storage.Cache.Memory]
+CleanupInterval = 60
+
+[Storage.Cache.Badger]
+Path = "data/cache"
+
+[Storage.Cache.Redis]
+Addr = ""
+Username = ""
+Password = ""
+DB = 1
+
+[Storage.DB]
+Debug = false
+Type = "mysql"
+DSN = "root:Wayne123456@tcp(mysql:3306)/han_ginadmin?charset=utf8mb4&parseTime=True&loc=Local"
+MaxLifetime = 86400
+MaxIdleTime = 3600
+MaxOpenConns = 100
+MaxIdleConns = 50
+TablePrefix = ""
+AutoMigrate = true
+
+[Util]
+
+[Util.Captcha]
+Length = 4
+Width = 400
+Height = 160
+CacheType = "memory"
+
+[Util.Captcha.Redis]
+Addr = ""
+Username = ""
+Password = ""
+DB = 1
+KeyPrefix = "captcha:"
+
+[Util.Prometheus]
+Enable = false
+Port = 9100
+BasicUsername = "admin"
+BasicPassword = "admin"
+LogApis = []
+LogMethods = []
+DefaultCollect = true
+
+[Dictionary]
+UserCacheExp = 4

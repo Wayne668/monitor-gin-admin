@@ -1,0 +1,26 @@
+[Logger]
+Debug = false
+Level = "info"
+CallerSkip = 1
+
+[Logger.File]
+Enable = true
+Path = "data/log/ginadmin.log"
+MaxBackups = 20
+MaxSize = 64
+
+[[Logger.Hooks]]
+Enable = true
+Level = "info"
+Type = "gorm"
+MaxBuffer = 1024
+MaxThread = 2
+
+[Logger.Hooks.Options]
+Debug = "false"
+DBType = "sqlite3"
+DSN = "data/ginadmin.db"
+MaxOpenConns = "16"
+MaxIdleConns = "4"
+MaxLifetime = "86400"
+MaxIdleTime = "7200"
