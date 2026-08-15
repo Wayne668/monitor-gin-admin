@@ -197,14 +197,14 @@
                     :disabled="!form.selectedAgentId" />
             </a-form-item>
 
-            <a-form-item
+            <!-- <a-form-item
                 label=" "
                 name="agreeTerms"
                 :colon="false">
                 <a-checkbox v-model:checked="form.agreeTerms" :disabled="!form.selectedAgentId">
                     我同意授权深圳市零一聚合根据我提交的规则信息管理我名下广告账户以及广告
                 </a-checkbox>
-            </a-form-item>
+            </a-form-item> -->
 
             <a-form-item
                 label=" "
@@ -335,7 +335,7 @@ const form = reactive({
     notifyPhones: '',
     dingtalkWebhookUrl: '',
     name: '',
-    agreeTerms: false,
+    // agreeTerms: false,
 })
 
 // 目标穿梭框数据源：根据 target 选择对应的列表

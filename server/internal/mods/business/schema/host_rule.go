@@ -39,7 +39,7 @@ type HostRule struct {
 	TriggerFrequency   int       `json:"trigger_frequency" gorm:"column:trigger_frequency;type:int;not null;default:0"`
 	NotifyFrequency    int       `json:"notify_frequency" gorm:"column:notify_frequency;type:int;not null;default:0"`
 	RuleName           string    `json:"rule_name" gorm:"column:rule_name;type:varchar(50);not null;default:''"`
-	UserID             int       `json:"userid" gorm:"column:userid;type:int;not null;default:0"`
+	UserID             string    `json:"userid" gorm:"column:userid;size:20;not null;default:''"` // 关联user.id
 	UserName           string    `json:"user_name" gorm:"->;-:migration"`
 	DingtalkWebhookUrl string    `json:"dingtalk_webhook_url" gorm:"column:dingtalk_webhook_url;type:varchar(500);not null;default:''"`
 	Status             int8      `json:"status" gorm:"column:status;type:tinyint(1);not null;default:0"`
@@ -124,19 +124,22 @@ func (a *HostRuleForm) FillTo(item *HostRule) {
 	item.Target = a.Target
 	item.ScopeType = a.ScopeType
 	item.AgentID, _ = strconv.ParseInt(a.SelectedAgentID, 10, 64)
-	// 使用条件与操作 JSON 序列化，不转义 HTML 字符
-	buf := new(bytes.Buffer)
-	enc := json.NewEncoder(buf)
-	enc.SetEscapeHTML(false)
-	_ = enc.Encode(a.ConditionConfig)
-	item.TriggerCondition = string(bytes.TrimRight(buf.Bytes(), "\n"))
-	item.ExecuteAction = a.Action
-	// logic 映射到 operate_method：and=0, or=1
+	// logic 单独映射到 operate_method：and=0, or=1；trigger_condition 只存 conditions
 	if cfg, ok := a.ConditionConfig.(map[string]interface{}); ok {
 		if logic, ok := cfg["logic"].(string); ok && logic == "or" {
 			item.OperateMethod = 1
+		} else {
+			item.OperateMethod = 0
 		}
+		// 只序列化 conditions，剔除 logic
+		conditionsOnly := map[string]interface{}{"conditions": cfg["conditions"]}
+		buf := new(bytes.Buffer)
+		enc := json.NewEncoder(buf)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(conditionsOnly)
+		item.TriggerCondition = string(bytes.TrimRight(buf.Bytes(), "\n"))
 	}
+	item.ExecuteAction = a.Action
 	item.TriggerFrequency = a.CheckFreq
 	item.DingtalkWebhookUrl = a.DingtalkWebhookUrl
 	// 生效日期

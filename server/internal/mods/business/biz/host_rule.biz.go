@@ -114,6 +114,8 @@ func (a *HostRule) Save(ctx context.Context, formItem *schema.HostRuleForm) (*sc
 		Status: schema.HostRuleStatusEnabled,
 	}
 	formItem.FillTo(item)
+	// 记录创建人：root 登录时为配置中的ID("root")，普通用户为 user.id
+	item.UserID = util.FromUserID(ctx)
 	if err := a.HostRuleDAL.Create(ctx, item); err != nil {
 		return nil, err
 	}

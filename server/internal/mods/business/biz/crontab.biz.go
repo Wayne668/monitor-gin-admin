@@ -166,8 +166,9 @@ func (s *Crontab) HandleHostRule() error {
 			Unit     string  `json:"unit"`
 			Value    float64 `json:"value"`
 		}
-		// 解析 trigger_condition JSON 为 CustomReportReq
+
 		// {"conditions":[{"metric":"stat_cost","operator":"\u003c","time":"today","unit":"元","value":20}]}
+		// 因为每个metric的时间范围可能不同，此处获取时间区间最长的一个覆盖所有metric，后面会有逻辑聚合每个metric各自的时间范围
 		var timeRange schema.TimeFiltering
 		if strings.Contains(rule.TriggerCondition, "last_7days") {
 			timeRange = schema.TimeFiltering{
@@ -196,10 +197,10 @@ func (s *Crontab) HandleHostRule() error {
 
 		fmt.Printf("[HandleHostRule] 规则[%d] 时间范围: %s ~ %s\n", rule.ID, timeRange.CreateStartTime, timeRange.CreateEndTime)
 
+		// 解析 trigger_condition JSON 为 CustomReportReq
 		var triggerCondition struct {
 			Conditions []conditionItem `json:"conditions"`
 		}
-
 		if err := json.Unmarshal([]byte(rule.TriggerCondition), &triggerCondition); err != nil {
 			fmt.Printf("[HandleHostRule] 规则[%d] 解析 trigger_condition 失败: %v\n", rule.ID, err)
 			continue
@@ -213,6 +214,7 @@ func (s *Crontab) HandleHostRule() error {
 		metricTime := make(map[string]schema.TimeFiltering)
 		for _, condition := range triggerCondition.Conditions {
 			metrics = append(metrics, condition.Metric)
+			// 获取每个metric的实际时间范围并添加到metricTime中
 			switch condition.Time {
 			case "today":
 				metricTime[condition.Metric] = schema.TimeFiltering{
@@ -286,6 +288,7 @@ func (s *Crontab) HandleHostRule() error {
 		var isExcludeTarget bool
 		var isExcludeAccount bool
 		switch rule.ScopeType {
+		case "account_promotion": // 指定账户的广告
 		case "promotion": // 指定广告
 			if err := json.Unmarshal([]byte(rule.TargetPromotion), &promotionIDs); err != nil {
 				fmt.Printf("解析规则 %d target_promotion 失败: %v\n", rule.ID, err)
@@ -295,6 +298,7 @@ func (s *Crontab) HandleHostRule() error {
 			isExcludeAccount = true
 		case "exclude_promotion": // 排除指定广告
 			isExcludeTarget = true
+		case "account_creative": // 指定账户的创意
 		case "creative": // 指定创意
 			if err := json.Unmarshal([]byte(rule.TargetMaterial), &materialIDs); err != nil {
 				fmt.Printf("解析规则 %d target_material 失败: %v\n", rule.ID, err)
@@ -311,11 +315,7 @@ func (s *Crontab) HandleHostRule() error {
 
 		if isExcludeAccount {
 			// 查询nb_host_account表
-			accountIDInts := make([]int64, len(targetAccountIDs))
-			for i, id := range targetAccountIDs {
-				accountIDInts[i], _ = strconv.ParseInt(id, 10, 64)
-			}
-			excludeAccounts, err := s.HostAccount.FindExcludeAccount(ctx, accountIDInts)
+			excludeAccounts, err := s.HostAccount.FindExcludeAccount(ctx, accountIDs)
 			if err != nil {
 				fmt.Printf("解析规则 %d target_accounts 失败: %v\n", rule.ID, err)
 				continue
@@ -418,6 +418,10 @@ func (s *Crontab) HandleHostRule() error {
 					})
 				}
 
+				req.OrderBy = []schema.CustomReportOrderBy{
+					{Field: "stat_time_day", Type: "ASC"},
+				}
+
 				resp, err := s.Oceanengine.QueryCustomReport(ctx, rule.AgentID, req)
 				if err != nil {
 					fmt.Printf("[HandleHostRule] 规则[%d] 查询自定义报表失败(account=%d, page=%d): %v\n", rule.ID, advertiserID, page, err)
@@ -426,6 +430,14 @@ func (s *Crontab) HandleHostRule() error {
 
 				fmt.Printf("[HandleHostRule] 规则[%d] account=%d page=%d 返回 %d 行, totalPage=%d\n",
 					rule.ID, advertiserID, page, len(resp.Data.Rows), resp.Data.PageInfo.TotalPage)
+
+				// 输出响应明细（调试用）
+				for i, row := range resp.Data.Rows {
+					dimJSON, _ := json.Marshal(row.Dimensions)
+					metricJSON, _ := json.Marshal(row.Metrics)
+					fmt.Printf("[HandleHostRule] 规则[%d] account=%d 行[%d] dimensions=%s metrics=%s\n",
+						rule.ID, advertiserID, i, string(dimJSON), string(metricJSON))
+				}
 
 				allRows = append(allRows, resp.Data.Rows...)
 
@@ -445,9 +457,10 @@ func (s *Crontab) HandleHostRule() error {
 
 			// 确定维度中用于区分目标的key
 			targetDimKey := "cdp_promotion_id"
-			if rule.Target == "creative" {
+			switch rule.Target {
+			case "creative":
 				targetDimKey = "material_id"
-			} else {
+			case "project":
 				targetDimKey = "cdp_project_id"
 			}
 
@@ -501,8 +514,15 @@ func (s *Crontab) HandleHostRule() error {
 						if formula, ok := metricWithFormula[condition.Metric]; ok && formula != "" {
 							// 使用公式算法计算total值，因为媒体返回的带公式的指标值不准
 							formulaArr := strings.Split(formula, "/")
-							if len(formulaArr) == 2 && metricTotals[formulaArr[1]] != 0 {
-								total = metricTotals[formulaArr[0]] / metricTotals[formulaArr[1]]
+							if len(formulaArr) == 2 {
+								numerator := metricTotals[formulaArr[0]]
+								denominator := metricTotals[formulaArr[1]]
+								if denominator != 0 {
+									total = numerator / denominator
+								} else {
+									// 分母为0时（如convert_cnt=0），转化成本=消耗
+									total = numerator
+								}
 							} else {
 								total = metricTotals[condition.Metric]
 							}
@@ -526,8 +546,15 @@ func (s *Crontab) HandleHostRule() error {
 						if formula, ok := metricWithFormula[condition.Metric]; ok && formula != "" {
 							// 使用公式算法计算total值，因为媒体返回的带公式的指标值不准
 							formulaArr := strings.Split(formula, "/")
-							if len(formulaArr) == 2 && metricTotals[formulaArr[1]] != 0 {
-								total = metricTotals[formulaArr[0]] / metricTotals[formulaArr[1]]
+							if len(formulaArr) == 2 {
+								numerator := metricTotals[formulaArr[0]]
+								denominator := metricTotals[formulaArr[1]]
+								if denominator != 0 {
+									total = numerator / denominator
+								} else {
+									// 分母为0时（如convert_cnt=0），转化成本=消耗
+									total = numerator
+								}
 							} else {
 								total = metricTotals[condition.Metric]
 							}
@@ -545,6 +572,16 @@ func (s *Crontab) HandleHostRule() error {
 
 				if targetTriggered {
 					fmt.Printf("[HandleHostRule] 规则[%d] %s target=%s(%s) 触发预警! reason=%s\n", rule.ID, rule.RuleName, rule.Target, targetID, triggerReason)
+					// 根据target类型填充对应的ID字段
+					targetIDInt, _ := strconv.ParseInt(targetID, 10, 64)
+					// 已存在待执行记录（同规则+同账户+同目标）则跳过，避免重复写入
+					exists, err := s.HostTriggerRecord.ExistsPending(ctx, int(rule.ID), advertiserID, rule.Target, targetIDInt)
+					if err != nil {
+						fmt.Printf("[HandleHostRule] 规则[%d] 查询已有触发记录失败: %v\n", rule.ID, err)
+					} else if exists {
+						fmt.Printf("[HandleHostRule] 规则[%d] target=%s(%s) 已存在pending记录，跳过\n", rule.ID, rule.Target, targetID)
+						continue
+					}
 					// 写入触发记录
 					record := &schema.HostTriggerRecord{
 						RuleID:        int(rule.ID),
@@ -554,8 +591,6 @@ func (s *Crontab) HandleHostRule() error {
 						ExecuteStatus: "pending",
 						TriggerReason: triggerReason,
 					}
-					// 根据target类型填充对应的ID字段
-					targetIDInt, _ := strconv.ParseInt(targetID, 10, 64)
 					switch rule.Target {
 					case "creative":
 						record.MaterialID = targetIDInt
@@ -731,6 +766,13 @@ func (s *Crontab) SyncPromotionMaterial(agentID, advertiserID int64) error {
 func (s *Crontab) SyncHostTriggerRecord() error {
 	ctx := context.Background()
 
+	// 重置超时的processing记录（超过10分钟未完成视为进程异常，重新入队）
+	if n, err := s.HostTriggerRecord.ResetStaleProcessing(ctx, time.Now().Add(-10*time.Minute)); err != nil {
+		fmt.Printf("[SyncHostTriggerRecord] 重置超时processing记录失败: %v\n", err)
+	} else if n > 0 {
+		fmt.Printf("[SyncHostTriggerRecord] 重置了 %d 条超时processing记录为pending\n", n)
+	}
+
 	// 查询待执行的触发记录
 	records, err := s.HostTriggerRecord.QueryPending(ctx)
 	if err != nil {
@@ -743,8 +785,26 @@ func (s *Crontab) SyncHostTriggerRecord() error {
 		return nil
 	}
 
+	// updateResult 回写状态并记录回写失败日志
+	updateResult := func(id uint, status, msg string) {
+		if err := s.HostTriggerRecord.UpdateResult(ctx, id, status, msg); err != nil {
+			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 回写状态(%s)失败: %v\n", id, status, err)
+		}
+	}
+
 	for _, record := range records {
-		// 映射 execute_action 到 optStatus: pause→DISABLE, restart→ENABLE
+		// 原子抢占：pending -> processing，抢占失败说明已被其他协程处理
+		claimed, err := s.HostTriggerRecord.ClaimPending(ctx, record.ID)
+		if err != nil {
+			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 抢占失败: %v\n", record.ID, err)
+			continue
+		}
+		if !claimed {
+			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 已被其他协程处理，跳过\n", record.ID)
+			continue
+		}
+
+		// 映射 execute_action 到 optStatus: pause->DISABLE, restart->ENABLE
 		optStatus := "DISABLE"
 		if record.ExecuteAction == "restart" {
 			optStatus = "ENABLE"
@@ -755,9 +815,13 @@ func (s *Crontab) SyncHostTriggerRecord() error {
 
 		// 获取规则信息（含钉钉 webhook）
 		rule, err := s.HostRule.Get(ctx, uint(record.RuleID))
-		if err != nil || rule == nil {
+		if err != nil {
 			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 获取规则失败: %v\n", record.ID, err)
-			_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("获取规则失败: %v", err))
+			updateResult(record.ID, "failed", fmt.Sprintf("获取规则失败: %v", err))
+			continue
+		} else if rule == nil {
+			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 规则[%d]已删除\n", record.ID, record.RuleID)
+			updateResult(record.ID, "failed", fmt.Sprintf("规则[%d]已删除", record.RuleID))
 			continue
 		}
 
@@ -768,24 +832,24 @@ func (s *Crontab) SyncHostTriggerRecord() error {
 			inStatus, err := s.PromotionMaterial.IsPromotionInTargetStatus(ctx, record.AdvertiserID, record.PromotionID, optStatus)
 			if err != nil {
 				fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 状态检查失败: %v\n", record.ID, err)
-				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
+				updateResult(record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
 				continue
 			}
 			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] promotionID=%d 目标状态=%s, 已达标=%v\n", record.ID, record.PromotionID, optStatus, inStatus)
 			if inStatus {
 				apiResult = "已处于目标状态，无需执行"
-				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+				updateResult(record.ID, "succeed", apiResult)
 			} else {
 				fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 调用 UpdatePromotionStatus promotionID=%d optStatus=%s\n", record.ID, record.PromotionID, optStatus)
 				_, err = s.Oceanengine.UpdatePromotionStatus(ctx, rule.AgentID, optStatus, []int64{record.PromotionID}, record.AdvertiserID)
 				if err != nil {
 					apiResult = fmt.Sprintf("执行失败: %v", err)
 					fmt.Printf("[SyncHostTriggerRecord] 记录[%d] UpdatePromotionStatus 失败: %v\n", record.ID, err)
-					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", apiResult)
+					updateResult(record.ID, "failed", apiResult)
 				} else {
 					apiResult = "执行成功"
 					fmt.Printf("[SyncHostTriggerRecord] 记录[%d] UpdatePromotionStatus 成功\n", record.ID)
-					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+					updateResult(record.ID, "succeed", apiResult)
 				}
 			}
 		case "creative":
@@ -797,29 +861,29 @@ func (s *Crontab) SyncHostTriggerRecord() error {
 			inStatus, err := s.PromotionMaterial.IsMaterialInTargetStatus(ctx, record.AdvertiserID, record.MaterialID, materialTargetStatus)
 			if err != nil {
 				fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 素材状态检查失败: %v\n", record.ID, err)
-				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
+				updateResult(record.ID, "failed", fmt.Sprintf("状态检查失败: %v", err))
 				continue
 			}
 			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] materialID=%d 目标状态=%s, 已达标=%v\n", record.ID, record.MaterialID, materialTargetStatus, inStatus)
 			if inStatus {
 				apiResult = "已处于目标状态，无需执行"
-				_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+				updateResult(record.ID, "succeed", apiResult)
 			} else {
 				fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 调用 UpdateMaterialStatus materialID=%d optStatus=%s\n", record.ID, record.MaterialID, optStatus)
 				_, err = s.Oceanengine.UpdateMaterialStatus(ctx, rule.AgentID, optStatus, []int64{record.MaterialID}, record.PromotionID, record.AdvertiserID)
 				if err != nil {
 					apiResult = fmt.Sprintf("执行失败: %v", err)
 					fmt.Printf("[SyncHostTriggerRecord] 记录[%d] UpdateMaterialStatus 失败: %v\n", record.ID, err)
-					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", apiResult)
+					updateResult(record.ID, "failed", apiResult)
 				} else {
 					apiResult = "执行成功"
 					fmt.Printf("[SyncHostTriggerRecord] 记录[%d] UpdateMaterialStatus 成功\n", record.ID)
-					_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "succeed", apiResult)
+					updateResult(record.ID, "succeed", apiResult)
 				}
 			}
 		default:
 			fmt.Printf("[SyncHostTriggerRecord] 记录[%d] 不支持的目标类型: %s\n", record.ID, record.Target)
-			_ = s.HostTriggerRecord.UpdateResult(ctx, record.ID, "failed", fmt.Sprintf("不支持的目标类型: %s", record.Target))
+			updateResult(record.ID, "failed", fmt.Sprintf("不支持的目标类型: %s", record.Target))
 			continue
 		}
 

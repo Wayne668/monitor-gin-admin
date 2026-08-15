@@ -32,7 +32,7 @@ func (a *HostRule) Query(ctx context.Context, params schema.HostRuleQueryParam, 
 		db = db.Where("rule_name LIKE ?", "%"+v+"%")
 	}
 	if v := params.Status; v != nil {
-		db = db.Where("status = ?", *v)
+		db = db.Where("nb_host_rule.status = ?", *v)
 	}
 
 	var list schema.HostRules
@@ -50,7 +50,7 @@ func (a *HostRule) Query(ctx context.Context, params schema.HostRuleQueryParam, 
 // Get 获取指定托管规则
 func (a *HostRule) Get(ctx context.Context, id uint) (*schema.HostRule, error) {
 	item := new(schema.HostRule)
-	ok, err := util.FindOne(ctx, GetHostRuleDB(ctx, a.DB).Where("id=?", id), util.QueryOptions{}, item)
+	ok, err := util.FindOne(ctx, GetHostRuleDB(ctx, a.DB).Where("nb_host_rule.id=?", id), util.QueryOptions{}, item)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	} else if !ok {
@@ -61,26 +61,26 @@ func (a *HostRule) Get(ctx context.Context, id uint) (*schema.HostRule, error) {
 
 // UpdateStatus 更新托管规则状态
 func (a *HostRule) UpdateStatus(ctx context.Context, id uint, status int8) error {
-	result := GetHostRuleDB(ctx, a.DB).Where("id=?", id).Update("status", status)
+	result := util.GetDB(ctx, a.DB).Model(new(schema.HostRule)).Where("id=?", id).Update("status", status)
 	return errors.WithStack(result.Error)
 }
 
 // Create 新增托管规则
 func (a *HostRule) Create(ctx context.Context, item *schema.HostRule) error {
-	result := GetHostRuleDB(ctx, a.DB).Create(item)
+	result := util.GetDB(ctx, a.DB).Create(item)
 	return errors.WithStack(result.Error)
 }
 
 // Update 更新托管规则
 func (a *HostRule) Update(ctx context.Context, item *schema.HostRule) error {
-	result := GetHostRuleDB(ctx, a.DB).Where("id=?", item.ID).Select("*").Updates(item)
+	result := util.GetDB(ctx, a.DB).Model(new(schema.HostRule)).Where("id=?", item.ID).Select("*").Updates(item)
 	return errors.WithStack(result.Error)
 }
 
 // QueryAllEnabled 查询所有启用状态的托管规则
 func (a *HostRule) QueryAllEnabled(ctx context.Context) ([]*schema.HostRule, error) {
 	var list []*schema.HostRule
-	db := GetHostRuleDB(ctx, a.DB).Where("status = ?", schema.HostRuleStatusEnabled)
+	db := GetHostRuleDB(ctx, a.DB).Where("nb_host_rule.status = ?", schema.HostRuleStatusEnabled)
 	result := db.Find(&list)
 	if result.Error != nil {
 		return nil, errors.WithStack(result.Error)

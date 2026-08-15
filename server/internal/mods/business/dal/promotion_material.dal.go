@@ -105,7 +105,7 @@ func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs
 	var err error
 	var db *gorm.DB
 	if target == "promotion" {
-		db = util.GetDB(ctx, a.DB).
+		db = util.GetDB(ctx, a.DB).Model(new(schema.PromotionMaterial)).
 			Select("promotion_id").
 			Where("advertiser_id = ?", advertiserID).
 			Where("status_first != ?", schema.PromotionStatusDeleted)
@@ -117,7 +117,7 @@ func (a *PromotionMaterial) FindExistingTargetIDs(ctx context.Context, targetIDs
 			}
 		}
 	} else {
-		db = util.GetDB(ctx, a.DB).
+		db = util.GetDB(ctx, a.DB).Model(new(schema.PromotionMaterial)).
 			Select("material_id").
 			Where("advertiser_id = ?", advertiserID).
 			Where("material_id IN ?", targetIDs).

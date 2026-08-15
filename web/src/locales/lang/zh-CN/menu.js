@@ -44,4 +44,5 @@ export default {
     agentToken: '账户token',
     hostAccount: '托管账户',
     materialDelForm: '发起删除素材',
+    aiHostTriggerRecord: '托管触发记录',
 }
