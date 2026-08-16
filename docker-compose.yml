@@ -47,15 +47,15 @@ services:
       - ginadmin-network
 
   gocron:
-    build:
-      context: /opt/gocron
-      dockerfile: Dockerfile
+    image: ouqg/gocron:latest
     container_name: ginadmin-gocron
     restart: always
+    depends_on:
+      - mysql
     ports:
       - "5920:5920"
     volumes:
-      - /opt/gocron/data:/data
+      - /opt/gocron/conf:/app/conf
     networks:
       - ginadmin-network
 
