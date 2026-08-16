@@ -24,6 +24,8 @@ services:
     restart: always
     depends_on:
       - mysql
+    ports:
+      - "127.0.0.1:8040:8040" # 宿主机 gocron 要能访问 8040，绑定 127.0.0.1 保证不对外暴露
     environment:
       TZ: Asia/Shanghai
     volumes:
@@ -41,6 +43,19 @@ services:
       - server
     ports:
       - "80:80"
+    networks:
+      - ginadmin-network
+
+  gocron:
+    build:
+      context: /opt/gocron
+      dockerfile: Dockerfile
+    container_name: ginadmin-gocron
+    restart: always
+    ports:
+      - "5920:5920"
+    volumes:
+      - /opt/gocron/data:/data
     networks:
       - ginadmin-network
 

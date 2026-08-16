@@ -33,6 +33,7 @@ func (a *Business) RegisterV1Routers(ctx context.Context, v1 *gin.RouterGroup) e
 		crontab.POST("handle-host-rule", a.CrontabAPI.HandleHostRule)
 		crontab.GET("sync-promotion-material", a.CrontabAPI.SyncPromotionMaterial)
 		crontab.POST("sync-advertiser-budget", a.CrontabAPI.SyncAdvertiserBudget)
+		crontab.POST("sync-host-trigger-record", a.CrontabAPI.SyncHostTriggerRecord)
 	}
 
 	hostRule := v1.Group("host-rules")
