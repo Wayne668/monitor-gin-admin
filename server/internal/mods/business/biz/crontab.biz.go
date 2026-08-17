@@ -85,45 +85,67 @@ func (s *Crontab) SyncAccounts(ctx context.Context, accountID int64, StartDate, 
 	return nil
 }
 
+// tokenRefreshThreshold token刷新阈值：access_token有效期24小时(86400s)，提前到11小时即触发刷新，
+// 即使调度间隔较长或漏跑几轮，仍有充足余量在过期前完成刷新
+const tokenRefreshThreshold = 39600
+
 func (s *Crontab) RefreshToken() error {
+	ctx := context.Background()
 	// 查询所有已授权的token
-	result, err := s.AgentToken.Query(context.Background(), schema.AgentTokenQueryParam{})
+	result, err := s.AgentToken.Query(ctx, schema.AgentTokenQueryParam{})
 	if err != nil {
 		return fmt.Errorf("查询token失败: %w", err)
 	}
-	tokens := result.Data
 
-	// 筛选需要刷新的token
-	var expiredTokens []*schema.AgentToken
-	for _, token := range tokens {
-		if s.NeedRefresh(token) {
-			expiredTokens = append(expiredTokens, token)
-		}
-	}
-
-	// 逐个刷新token
-	for _, token := range expiredTokens {
-		fmt.Printf("开始刷新账号 %s 的token\n", token.AccountName)
-
-		updatedToken, err := s.Oceanengine.RefreshToken(token)
-		if err != nil {
-			fmt.Printf("刷新账号 %s 的token失败: %v\n", token.AccountName, err)
+	var errMsgs []string
+	refreshed := 0
+	for _, token := range result.Data {
+		if !s.NeedRefresh(token) {
 			continue
 		}
 
-		// 保存到数据库
-		err = s.AgentToken.Update(context.Background(), updatedToken)
+		fmt.Printf("开始刷新账号 %s 的token\n", token.AccountName)
+		updatedToken, err := s.Oceanengine.RefreshToken(token)
 		if err != nil {
 			fmt.Printf("刷新账号 %s 的token失败: %v\n", token.AccountName, err)
+			errMsgs = append(errMsgs, fmt.Sprintf("账号[%s]刷新失败: %v", token.AccountName, err))
+			continue
+		}
+
+		// 保存到数据库。refresh_token是一次性的，媒体侧旧值已作废，必须确保新值落库成功
+		if err := s.saveRefreshedToken(ctx, updatedToken); err != nil {
+			fmt.Printf("保存账号 %s 的新token失败: %v\n", token.AccountName, err)
+			errMsgs = append(errMsgs, fmt.Sprintf("账号[%s]新token保存失败(需重新授权): %v", token.AccountName, err))
 			continue
 		}
 
 		fmt.Printf("刷新账号 %s 的token成功\n", token.AccountName)
+		refreshed++
 		// 避免请求过于频繁
 		time.Sleep(1 * time.Second)
 	}
 
+	fmt.Printf("[RefreshToken] 完成: 成功 %d 个, 失败 %d 个\n", refreshed, len(errMsgs))
+	if len(errMsgs) > 0 {
+		return fmt.Errorf("刷新token存在失败: %s", strings.Join(errMsgs, "; "))
+	}
 	return nil
+}
+
+// saveRefreshedToken 保存刷新后的token，带重试；彻底失败时把账号标记为需重新授权
+func (s *Crontab) saveRefreshedToken(ctx context.Context, token *schema.AgentToken) error {
+	var err error
+	for i := 0; i < 3; i++ {
+		if err = s.AgentToken.Update(ctx, token); err == nil {
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	// 保存彻底失败：媒体侧新refresh_token已生效，但库里仍是作废的旧值，该账号后续无法再刷新，
+	// 标记状态提示重新授权（尽力而为，此更新失败不影响返回的原始错误）
+	token.AuthStatus = "刷新失败，需重新授权"
+	_ = s.AgentToken.Update(ctx, token)
+	return err
 }
 
 // NeedRefresh 检查是否需要刷新token
@@ -132,10 +154,8 @@ func (s *Crontab) NeedRefresh(token *schema.AgentToken) bool {
 	if token.AuthStatus != "已授权" {
 		return false
 	}
-
-	// 检查token是否过期（当前时间戳 - tokentime > 86400），此处修改为提前400s，因为定时任务是每5分钟执行一次，所以提前400s确保在5分钟内刷新
-	currentTime := time.Now().Unix()
-	return currentTime-int64(token.TokenTime) > 86000
+	// token年龄超过阈值（11小时）即刷新，见 tokenRefreshThreshold 注释
+	return time.Now().Unix()-token.TokenTime > tokenRefreshThreshold
 }
 
 func (s *Crontab) HandleHostRule() error {
