@@ -176,6 +176,21 @@ func (s *Crontab) HandleHostRule() error {
 			continue
 		}
 
+		// 判断是否满足执行频率（hosted_at + trigger_frequency 分钟 > 当前时间 则跳过）
+		if rule.HostedAt != nil {
+			nextRunTime := rule.HostedAt.Add(time.Duration(rule.TriggerFrequency) * time.Minute)
+			if now.Before(nextRunTime) {
+				fmt.Printf("[HandleHostRule] 规则[%d] %s 未到执行频率(上次执行: %s, 频率: %d分钟)，跳过\n",
+					rule.ID, rule.RuleName, rule.HostedAt.Format("2006-01-02 15:04:05"), rule.TriggerFrequency)
+				continue
+			}
+		}
+
+		// 更新上一次执行时间为当前时间
+		if err := s.HostRule.UpdateHostedAt(ctx, rule.ID, now); err != nil {
+			fmt.Printf("[HandleHostRule] 规则[%d] 更新执行时间失败: %v\n", rule.ID, err)
+		}
+
 		fmt.Printf("[HandleHostRule] 开始处理规则[%d] %s target=%s action=%s operateMethod=%d\n",
 			rule.ID, rule.RuleName, rule.Target, rule.ExecuteAction, rule.OperateMethod)
 

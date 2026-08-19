@@ -2,6 +2,7 @@ package dal
 
 import (
 	"context"
+	"time"
 
 	"monitor-gin-admin/internal/mods/business/schema"
 	"monitor-gin-admin/pkg/errors"
@@ -59,9 +60,15 @@ func (a *HostRule) Get(ctx context.Context, id uint) (*schema.HostRule, error) {
 	return item, nil
 }
 
-// UpdateStatus 更新托管规则状态
+// UpdateStatus 更新状态
 func (a *HostRule) UpdateStatus(ctx context.Context, id uint, status int8) error {
 	result := util.GetDB(ctx, a.DB).Model(new(schema.HostRule)).Where("id=?", id).Update("status", status)
+	return errors.WithStack(result.Error)
+}
+
+// UpdateHostedAt 更新上一次执行时间
+func (a *HostRule) UpdateHostedAt(ctx context.Context, id uint, t time.Time) error {
+	result := util.GetDB(ctx, a.DB).Model(new(schema.HostRule)).Where("id=?", id).Update("hosted_at", t)
 	return errors.WithStack(result.Error)
 }
 
