@@ -21,7 +21,7 @@
                     </a-select>
                     <a-select
                         v-model:value="retryAccountId"
-                        placeholder="选择代理商账户"
+                        placeholder="选择客户公司"
                         style="width: 200px"
                         :options="agentTokenOptions" />
                     <a-button
@@ -76,7 +76,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { getDeleteUnauditedMaterialList, retryFailedDelete } from '@/apis/modules/delUnitMaterial'
-import { getAgentTokenList } from '@/apis/modules/agentToken'
+import { getHostAccountList } from '@/apis/modules/hostAccount'
 
 const router = useRouter()
 
@@ -103,11 +103,18 @@ const agentTokenOptions = ref([])
 
 const loadAgentTokenOptions = async () => {
     try {
-        const res = await getAgentTokenList({ current: 1, pageSize: 100 })
-        agentTokenOptions.value = (res.data || []).map((t) => ({
-            label: `${t.accountName} (${t.accountId})`,
-            value: t.accountId,
-        }))
+        const res = await getHostAccountList({ pageSize: 100 })
+        const seen = new Set()
+        agentTokenOptions.value = (res.data || [])
+            .filter((item) => {
+                if (seen.has(item.agentId)) return false
+                seen.add(item.agentId)
+                return true
+            })
+            .map((item) => ({
+                label: item.advCompanyName || item.advertiserName,
+                value: item.agentId,
+            }))
     } catch {
         // ignore
     }
@@ -155,7 +162,7 @@ const handleOpenForm = () => {
 
 const handleRetryFailed = async () => {
     if (!retryAccountId.value) {
-        message.warning('请先选择代理商账户')
+        message.warning('请先选择客户公司')
         return
     }
     retryLoading.value = true

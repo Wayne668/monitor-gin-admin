@@ -36,7 +36,7 @@ func (a *PromotionMaterial) FindMaterialsByAccountIDs(ctx context.Context, accou
 		Table("nb_promotion_material pm").
 		Select("pm.material_id, ANY_VALUE(pm.advertiser_id) AS advertiser_id, ANY_VALUE(mv.file_name) AS file_name, ANY_VALUE(pm.promotion_id) AS promotion_id").
 		Joins("LEFT JOIN nb_material_video mv ON pm.material_id = mv.material_id").
-		Where("pm.advertiser_id IN ? AND pm.material_status = ?", accountIDs, schema.MaterialStatusOK).
+		Where("pm.advertiser_id IN ? AND pm.material_status = ?", accountIDs, materialStatus).
 		Group("pm.material_id")
 	err := db.Find(&list).Error
 	if err != nil {
@@ -166,4 +166,13 @@ func (a *PromotionMaterial) IsMaterialInTargetStatus(ctx context.Context, advert
 		return false, errors.WithStack(err)
 	}
 	return count > 0, nil
+}
+
+// UpdateMaterialStatus 更新素材状态（按 advertiser_id + promotion_id + material_id 定位）
+func (a *PromotionMaterial) UpdateMaterialStatus(ctx context.Context, advertiserID, promotionID, materialID int64, status string) error {
+	err := util.GetDB(ctx, a.DB).
+		Model(new(schema.PromotionMaterial)).
+		Where("advertiser_id = ? AND promotion_id = ? AND material_id = ?", advertiserID, promotionID, materialID).
+		Update("material_status", status).Error
+	return errors.WithStack(err)
 }

@@ -71,7 +71,7 @@ func (a *DeleteUnauditedMaterial) GetUnAudititedMaterial(c *gin.Context) {
 		accountIDs = append(accountIDs, id)
 	}
 
-	items, err := a.DeleteUnauditedMaterialBIZ.GetUnAudititedMaterial(ctx, accountIDs)
+	items, err := a.DeleteUnauditedMaterialBIZ.GetUnAudititedMaterialWithFallback(ctx, 0, accountIDs)
 	if err != nil {
 		util.ResError(c, err)
 		return
@@ -93,12 +93,14 @@ func (a *DeleteUnauditedMaterial) DeleteUnAudititedMaterial(c *gin.Context) {
 		return
 	}
 
-	err := a.DeleteUnauditedMaterialBIZ.DeleteAndSave(ctx, req)
+	failedRecords, err := a.DeleteUnauditedMaterialBIZ.DeleteAndSave(ctx, req)
 	if err != nil {
 		util.ResError(c, err)
 		return
 	}
-	util.ResOK(c)
+	util.ResSuccess(c, map[string]interface{}{
+		"failed": failedRecords,
+	})
 }
 
 // RetryFailedDelete 重试删除失败的记录

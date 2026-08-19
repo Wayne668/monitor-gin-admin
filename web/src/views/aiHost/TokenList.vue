@@ -78,18 +78,18 @@
                 :label-col="{ span: 6 }"
                 :wrapper-col="{ span: 16 }">
                 <a-form-item
-                    label="账号名"
+                    label="主体名称"
                     name="accountName">
                     <a-input
                         v-model:value="form.accountName"
-                        placeholder="请输入账号名" />
+                        placeholder="请输入主体名称" />
                 </a-form-item>
                 <a-form-item
-                    label="账号ID"
+                    label="主体ID"
                     name="accountId">
                     <a-input
                         v-model:value="form.accountId"
-                        placeholder="请输入账号ID" />
+                        placeholder="请输入主体ID" />
                 </a-form-item>
                 <a-form-item
                     label="授权状态"
@@ -155,8 +155,8 @@ import { getAgentTokenList, getAgentToken, createAgentToken, updateAgentToken, d
 
 const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: '账号名', dataIndex: 'accountName', key: 'accountName', width: 150 },
-    { title: '账号ID', dataIndex: 'accountId', key: 'accountId', width: 120 },
+    { title: '主体名称', dataIndex: 'accountName', key: 'accountName', width: 150 },
+    { title: '主体ID', dataIndex: 'accountId', key: 'accountId', width: 120 },
     { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', width: 100 },
     { title: 'AccessToken', dataIndex: 'accessToken', key: 'accessToken', width: 200, ellipsis: true },
     { title: 'App名称', dataIndex: 'appName', key: 'appName', width: 120 },

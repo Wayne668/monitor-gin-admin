@@ -20,8 +20,8 @@ type DeleteUnauditedMaterial struct {
 	IsDeleted    string `json:"isDeleted" gorm:"column:is_deleted;type:varchar(6);not null;default:'';comment:pending,deleted,failed"`
 	ErrorMsg     string `json:"errorMsg" gorm:"column:error_msg;type:varchar(255);not null;default:''"`
 	RetryTimes   int    `json:"retryTimes" gorm:"column:retry_times;type:tinyint(1);not null;default:0;comment:重试次数<=3"`
-	CreatedAt    string `json:"createdAt" gorm:"column:created_at;type:datetime;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    string `json:"updatedAt" gorm:"column:updated_at;type:datetime;default:CURRENT_TIMESTAMP"`
+	CreatedAt    string `json:"createdAt" gorm:"column:created_at;type:datetime;<-:false"`
+	UpdatedAt    string `json:"updatedAt" gorm:"column:updated_at;type:datetime;<-:false"`
 }
 
 func (DeleteUnauditedMaterial) TableName() string {
@@ -53,14 +53,14 @@ type DeleteUnauditedMaterials []*DeleteUnauditedMaterial
 
 // UnAudititedMaterialItem 未审核素材项
 type UnAudititedMaterialItem struct {
-	MaterialID   int64  `json:"materialId"`
-	PromotionID  int64  `json:"promotionId"`
-	AdvertiserID int64  `json:"advertiserId"`
+	MaterialID   string `json:"materialId"`
+	PromotionID  string `json:"promotionId"`
+	AdvertiserID string `json:"advertiserId"`
 	MaterialName string `json:"materialName"`
 }
 
 // UnAudititedMaterialReq 删除未审核素材请求
 type UnAudititedMaterialReq struct {
-	AccountID int64                     `json:"accountId"`
+	AccountID string                    `json:"accountId"`
 	Materials []UnAudititedMaterialItem `json:"materials"`
 }

@@ -43,7 +43,7 @@ func (a *DeleteUnauditedMaterial) Get(ctx context.Context, id uint) (*schema.Del
 }
 
 // FetchUnauditedMaterial 拉取未审核素材
-func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, accountID int64, accountIDs []int64) ([]*schema.DeleteUnauditedMaterial, error) {
+func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, agentID int64, accountIDs []int64) ([]*schema.DeleteUnauditedMaterial, error) {
 	filtering := map[string]interface{}{
 		"status_first": schema.PromotionStatusEnable,
 	}
@@ -51,7 +51,7 @@ func (a *DeleteUnauditedMaterial) FetchUnauditedMaterial(ctx context.Context, ac
 
 	result := make([]*schema.DeleteUnauditedMaterial, 0)
 	for _, advertiserID := range accountIDs {
-		items, err := a.Oceanengine.GetRefPromotionData(ctx, accountID, advertiserID, filtering, fields)
+		items, err := a.Oceanengine.GetRefPromotionData(ctx, agentID, advertiserID, filtering, fields)
 		if err != nil {
 			return nil, fmt.Errorf("拉取账户 %d 广告失败: %w", advertiserID, err)
 		}
@@ -79,30 +79,69 @@ func (a *DeleteUnauditedMaterial) GetUnAudititedMaterial(ctx context.Context, ac
 	return a.PromotionMaterialDAL.FindMaterialsByAccountIDs(ctx, accountIDs, schema.MaterialStatusOfflineAudit)
 }
 
-// DeleteAndSave 删除素材并保存记录
-func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema.UnAudititedMaterialReq) error {
-	for _, m := range req.Materials {
-		record := &schema.DeleteUnauditedMaterial{
-			MaterialID:   m.MaterialID,
+// GetUnAudititedMaterialWithFallback 先查本地表，若为空则回退到媒体接口拉取
+func (a *DeleteUnauditedMaterial) GetUnAudititedMaterialWithFallback(ctx context.Context, agentID int64, accountIDs []int64) ([]schema.PromotionMaterial, error) {
+	items, err := a.GetUnAudititedMaterial(ctx, accountIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) > 0 {
+		return items, nil
+	}
+
+	// 本地表无数据，回退到媒体接口
+	fetched, err := a.FetchUnauditedMaterial(ctx, agentID, accountIDs)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]schema.PromotionMaterial, 0, len(fetched))
+	for _, m := range fetched {
+		result = append(result, schema.PromotionMaterial{
 			AdvertiserID: m.AdvertiserID,
 			PromotionID:  m.PromotionID,
+			MaterialID:   m.MaterialID,
+			FileName:     m.MaterialName,
+		})
+	}
+	return result, nil
+}
+
+// DeleteAndSave 删除素材并保存记录，返回失败的记录列表
+func (a *DeleteUnauditedMaterial) DeleteAndSave(ctx context.Context, req *schema.UnAudititedMaterialReq) ([]*schema.DeleteUnauditedMaterial, error) {
+	accountID := util.ParseInt64(req.AccountID)
+	var failedRecords []*schema.DeleteUnauditedMaterial
+	for _, m := range req.Materials {
+		materialID := util.ParseInt64(m.MaterialID)
+		promotionID := util.ParseInt64(m.PromotionID)
+		advertiserID := util.ParseInt64(m.AdvertiserID)
+
+		record := &schema.DeleteUnauditedMaterial{
+			MaterialID:   materialID,
+			AdvertiserID: advertiserID,
+			PromotionID:  promotionID,
 			MaterialName: m.MaterialName,
 			IsDeleted:    "pending",
 		}
 
-		_, err := a.Oceanengine.DeleteMaterialUnderPromotion(ctx, req.AccountID, m.MaterialID, m.PromotionID, m.AdvertiserID)
+		_, err := a.Oceanengine.DeleteMaterialUnderPromotion(ctx, accountID, materialID, promotionID, advertiserID)
 		if err != nil {
 			record.IsDeleted = "failed"
 			record.ErrorMsg = err.Error()
+			failedRecords = append(failedRecords, record)
 		} else {
 			record.IsDeleted = "deleted"
+			// 更新 nb_promotion_material 素材状态为已删除
+			if updateErr := a.PromotionMaterialDAL.UpdateMaterialStatus(ctx, advertiserID, promotionID, materialID, schema.MaterialStatusDelete); updateErr != nil {
+				record.ErrorMsg = fmt.Sprintf("更新素材状态失败: %v", updateErr)
+				failedRecords = append(failedRecords, record)
+			}
 		}
 
 		if err := a.DeleteUnauditedMaterialDAL.Create(ctx, record); err != nil {
-			return fmt.Errorf("保存删除记录失败: %w", err)
+			return nil, fmt.Errorf("保存删除记录失败: %w", err)
 		}
 	}
-	return nil
+	return failedRecords, nil
 }
 
 // RetryFailedDelete 重试删除失败的记录（is_deleted=failed 且 retry_times < 3）

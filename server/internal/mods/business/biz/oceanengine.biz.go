@@ -24,6 +24,7 @@ type Oceanengine struct {
 
 // getAccessToken 根据 account_id 获取 access_token（authstatus=已授权）
 func (o *Oceanengine) getAccessToken(ctx context.Context, accountID int64) (string, error) {
+	accountID = 1760608006948878 // 此处因为业务调整，无论有多少个客户，都一起授权，都只使用一个代理商token
 	token, err := o.AgentTokenDAL.GetByAccountID(ctx, strconv.FormatInt(accountID, 10))
 	if err != nil {
 		return "", fmt.Errorf("查询代理商token失败: %w", err)

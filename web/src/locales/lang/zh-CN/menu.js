@@ -40,7 +40,7 @@ export default {
     hostFieldForm: '新增字段',
     hostFieldEdit: '编辑字段',
     materialWarn: '素材预警',
-    materialDel: '素材删除记录',
+    materialDel: '素材删除',
     agentToken: '账户token',
     hostAccount: '托管账户',
     materialDelForm: '发起删除素材',

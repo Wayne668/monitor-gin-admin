@@ -5,7 +5,7 @@
                 <a-space>
                     <a-select
                         v-model:value="searchParams.agentId"
-                        placeholder="代理商搜索"
+                        placeholder="客户公司搜索"
                         style="width: 240px"
                         allow-clear
                         show-search
@@ -90,11 +90,25 @@
                 :label-col="{ span: 6 }"
                 :wrapper-col="{ span: 16 }">
                 <a-form-item
-                    label="代理商ID"
+                    label="客户主体"
                     name="agentId">
-                    <a-input
-                        v-model:value="form.agentId"
-                        placeholder="请输入代理商ID" />
+                    <template v-if="!isManualInput">
+                        <a-select
+                            v-model:value="form.agentId"
+                            placeholder="请选择客户主体"
+                            :options="formAgentTokenOptions"
+                            @change="handleAgentChange" />
+                    </template>
+                    <template v-else>
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%">
+                            <a-input
+                                v-model:value="form.agentId"
+                                placeholder="请输入客户主体ID" />
+                            <a-input
+                                v-model:value="form.advCompanyName"
+                                placeholder="请输入客户公司名称" />
+                        </div>
+                    </template>
                 </a-form-item>
                 <a-form-item
                     label="广告主ID"
@@ -178,12 +192,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Modal, message } from 'ant-design-vue'
 import { getHostAccountList, getHostAccount, createHostAccount, updateHostAccount, delHostAccount } from '@/apis/modules/hostAccount'
-import { getAgentTokenList } from '@/apis/modules/agentToken'
 import { updateAdvertiserBudget, scheduleAdvertiserBudget, getBudgetRecords } from '@/apis/modules/advertiserBudget'
 
 const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-    { title: '代理商ID', dataIndex: 'agentId', key: 'agentId', width: 180 },
+    { title: '客户主体ID', dataIndex: 'agentId', key: 'agentId', width: 180 },
+    { title: '客户公司名称', dataIndex: 'advCompanyName', key: 'advCompanyName', ellipsis: true },
     { title: '广告主ID', dataIndex: 'advertiserId', key: 'advertiserId', width: 180 },
     { title: '广告主名称', dataIndex: 'advertiserName', key: 'advertiserName', ellipsis: true },
     // { title: '账户预算', key: 'budget', width: 100 },
@@ -205,6 +219,9 @@ const tableData = ref([])
 const searchParams = reactive({ agentId: '', advertiserId: '', advertiserName: '' })
 
 const agentTokenOptions = ref([])
+const isManualInput = ref(false)
+const formAgentTokenOptions = ref([])
+const formAgentTokenMap = ref({})
 
 const filterAgentOption = (input, option) => {
     return option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
@@ -212,13 +229,52 @@ const filterAgentOption = (input, option) => {
 
 const loadAgentTokens = async () => {
     try {
-        const res = await getAgentTokenList({ pageSize: 100 })
-        agentTokenOptions.value = (res.data || []).map((item) => ({
-            label: `${item.accountName} (${item.accountId})`,
-            value: item.accountId,
-        }))
+        const res = await getHostAccountList({ pageSize: 100 }, { enableAbortController: false })
+        const seen = new Set()
+        agentTokenOptions.value = (res.data || [])
+            .filter((item) => {
+                if (seen.has(item.agentId)) return false
+                seen.add(item.agentId)
+                return true
+            })
+            .map((item) => ({
+                label: item.advCompanyName || item.advertiserName,
+                value: item.agentId,
+            }))
     } catch (e) {
         // ignore
+    }
+}
+
+const loadFormAgentTokens = async () => {
+    try {
+        const res = await getHostAccountList({ pageSize: 100 }, { enableAbortController: false })
+        const seen = new Set()
+        const options = []
+        const map = {}
+        ;(res.data || []).forEach((item) => {
+            if (seen.has(item.agentId)) return
+            seen.add(item.agentId)
+            const label = item.advCompanyName || item.advertiserName
+            options.push({ label, value: item.agentId })
+            map[item.agentId] = { label, advCompanyName: item.advCompanyName || '' }
+        })
+        options.push({ label: '手动录入', value: '__manual__' })
+        formAgentTokenOptions.value = options
+        formAgentTokenMap.value = map
+    } catch (e) {
+        message.error('加载客户主体失败')
+    }
+}
+
+const handleAgentChange = (value) => {
+    if (value === '__manual__') {
+        isManualInput.value = true
+        form.agentId = ''
+        form.advCompanyName = ''
+    } else if (formAgentTokenMap.value[value]) {
+        isManualInput.value = false
+        form.advCompanyName = formAgentTokenMap.value[value].advCompanyName
     }
 }
 
@@ -245,13 +301,15 @@ const defaultForm = {
     agentId: '',
     advertiserId: '',
     advertiserName: '',
+    advCompanyName: '',
 }
 const form = reactive({ ...defaultForm })
 
 const rules = {
-    agentId: [{ required: true, message: '请输入代理商ID', trigger: 'blur' }],
+    agentId: [{ required: true, message: '请输入客户主体ID', trigger: 'blur' }],
     advertiserId: [{ required: true, message: '请输入广告主ID', trigger: 'blur' }],
     advertiserName: [{ required: true, message: '请输入广告主名称', trigger: 'blur' }],
+    advCompanyName: [{ required: true, message: '请输入客户公司名称', trigger: 'blur' }],
 }
 
 const loadData = async () => {
@@ -280,6 +338,7 @@ const handleSearch = () => {
 
 const resetForm = () => {
     Object.assign(form, defaultForm)
+    isManualInput.value = false
 }
 
 const handleAdd = () => {
@@ -298,6 +357,8 @@ const handleEdit = async (row) => {
         form.agentId = String(data.agentId || '')
         form.advertiserId = String(data.advertiserId || '')
         form.advertiserName = data.advertiserName || ''
+        form.advCompanyName = data.advCompanyName || ''
+        isManualInput.value = true
         modalVisible.value = true
     } catch (e) {
         message.error('加载失败')
@@ -316,6 +377,7 @@ const handleSubmit = async () => {
             agentId: Number(form.agentId),
             advertiserId: Number(form.advertiserId),
             advertiserName: form.advertiserName,
+            advCompanyName: form.advCompanyName,
         }
         if (isEdit.value) {
             await updateHostAccount(editId.value, payload)
@@ -439,6 +501,7 @@ const handleBudgetRecord = async (record) => {
 
 onMounted(() => {
     loadAgentTokens()
+    loadFormAgentTokens()
     loadData()
 })
 </script>

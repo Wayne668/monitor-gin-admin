@@ -24,11 +24,11 @@
             <a-divider orientation="left">授权账户</a-divider>
 
             <a-form-item
-                label="代理商账户"
+                label="客户公司"
                 name="selectedAgentId">
                 <a-select
                     v-model:value="form.selectedAgentId"
-                    placeholder="请选择代理商账户（用于获取 access_token）"
+                    placeholder="请选择客户公司"
                     style="max-width: 400px"
                     :options="agentTokenOptions"
                     @change="handleAgentTokenChange" />
@@ -145,6 +145,13 @@
                     <a-radio-button value="60">60分钟</a-radio-button>
                     <a-radio-button value="custom">自定义</a-radio-button>
                 </a-radio-group>
+                <a-input-number
+                    v-if="form.checkFreq === 'custom'"
+                    v-model:value="form.customCheckFreq"
+                    :min="1"
+                    addon-after="分钟"
+                    placeholder="请输入检查频率"
+                    style="margin-left: 12px; width: 180px" />
             </a-form-item>
 
             <a-form-item
@@ -230,7 +237,7 @@ import { message } from 'ant-design-vue'
 import ConditionBuilder from './components/ConditionBuilder.vue'
 import AccountTransfer from './components/AccountTransfer.vue'
 import TargetTransfer from './components/TargetTransfer.vue'
-import { getAgentTokenList } from '@/apis/modules/agentToken'
+import { getHostAccountList } from '@/apis/modules/hostAccount'
 import { saveHostRule } from '@/apis/modules/hostRule'
 
 const route = useRoute()
@@ -302,11 +309,18 @@ const agentTokenOptions = ref([])
 
 const loadAgentTokens = async () => {
     try {
-        const res = await getAgentTokenList({ pageSize: 100 })
-        agentTokenOptions.value = (res.data || []).map((item) => ({
-            label: `${item.accountName} (${item.accountId})`,
-            value: item.accountId,
-        }))
+        const res = await getHostAccountList({ pageSize: 100 })
+        const seen = new Set()
+        agentTokenOptions.value = (res.data || [])
+            .filter((item) => {
+                if (seen.has(item.agentId)) return false
+                seen.add(item.agentId)
+                return true
+            })
+            .map((item) => ({
+                label: item.advCompanyName || item.advertiserName,
+                value: item.agentId,
+            }))
     } catch (e) {
         message.error('加载代理商账户失败')
     }
@@ -330,6 +344,7 @@ const form = reactive({
     },
     action: undefined,
     checkFreq: '30',
+    customCheckFreq: 30,
     dateRange: undefined,
     notifyMethods: ['dingtalk'],
     notifyPhones: '',
@@ -422,7 +437,7 @@ const handleSave = async () => {
             selectedTargetIds: form.selectedTargetIds,
             conditionConfig: form.conditionConfig,
             action: form.action,
-            checkFreq: parseInt(form.checkFreq === 'custom' ? '30' : form.checkFreq, 10),
+            checkFreq: parseInt(form.checkFreq === 'custom' ? form.customCheckFreq : form.checkFreq, 10),
             dateRange: form.dateRange || [],
             notifyMethods: form.notifyMethods,
             dingtalkWebhookUrl: form.dingtalkWebhookUrl,

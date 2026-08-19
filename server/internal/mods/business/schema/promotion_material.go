@@ -26,3 +26,6 @@ const MaterialStatusOK = "MATERIAL_STATUS_OK"
 
 // MaterialStatusOfflineAudit 素材状态：未审核下线
 const MaterialStatusOfflineAudit = "MATERIAL_STATUS_OFFLINE_AUDIT"
+
+// MaterialStatusDelete 已删除状态
+const MaterialStatusDelete = "MATERIAL_STATUS_DELETE"

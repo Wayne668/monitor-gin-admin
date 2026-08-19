@@ -9,6 +9,19 @@ const MSG_ERROR_KEY = Symbol('GLOBAL_ERROR')
 
 const options = {
     enableAbortController: true,
+    transformResponse: [
+        (data) => {
+            // 超过JS安全整数(2^53-1, 约16位)的大整数ID转为字符串，避免精度丢失(如 7675076316887220262 -> 7675076316887220000)
+            if (typeof data === 'string') {
+                data = data.replace(/(:\s*)(\d{16,})/g, '$1"$2"')
+            }
+            try {
+                return JSON.parse(data)
+            } catch {
+                return data
+            }
+        },
+    ],
     interceptorRequest: (request) => {
         const userStore = useUserStore()
         const isLogin = userStore.isLogin

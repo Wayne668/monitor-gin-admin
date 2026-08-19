@@ -4,7 +4,7 @@
 import request from '@/utils/request'
 
 // 查询托管账户列表
-export const getHostAccountList = (params) => request.basic.get('/api/v1/host-accounts', params)
+export const getHostAccountList = (params, config = {}) => request.basic.get('/api/v1/host-accounts', params, config)
 
 // 获取托管账户详情
 export const getHostAccount = (id) => request.basic.get(`/api/v1/host-accounts/${id}`)
